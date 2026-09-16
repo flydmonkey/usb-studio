@@ -109,23 +109,4 @@ class SegmentPolicy {
     final seconds = elapsed.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$hours:$minutes:$seconds';
   }
-
-  static String recLabel({
-    required Duration elapsed,
-    required int segmentIndex,
-    bool segmented = true,
-  }) {
-    final time = formatElapsed(elapsed);
-    if (!segmented) {
-      return 'REC  $time';
-    }
-    return 'REC  $time  第$segmentIndex段';
-  }
-
-  static String segmentOptionLabel(int minutes) {
-    if (minutes <= 0) {
-      return '关闭';
-    }
-    return '$minutes 分钟';
-  }
 }

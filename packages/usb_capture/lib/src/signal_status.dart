@@ -19,7 +19,7 @@ class SignalStatus {
 
   String get hudLabel {
     if (width <= 0 || height <= 0) {
-      return '等待信号';
+      return '';
     }
     final rate = fps > 0 ? ' ${fps}fps' : '';
     final format = fourcc.isEmpty ? '' : ' $fourcc';

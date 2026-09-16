@@ -56,8 +56,7 @@ String localizeCaptureError(AppLocalizations l10n, CaptureError error) {
           return l10n.errorHttpNoNetwork;
         default:
           if (error.details == 'httpLiveFailed' ||
-              (error.details?.toLowerCase().contains('fffffff4') ?? false) ||
-              (error.details?.toLowerCase().contains('no_memory') ?? false)) {
+              CaptureError.isCodecNoMemory(error.details)) {
             return l10n.errorHttpLiveFailed;
           }
           return error.details ?? l10n.errorStreamFailed;

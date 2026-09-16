@@ -41,19 +41,6 @@ enum QualityPreset {
     );
   }
 
-  String get optionLabel {
-    switch (this) {
-      case QualityPreset.tiny:
-        return '更小（约 15MB/分钟）';
-      case QualityPreset.small:
-        return '省空间（约 30MB/分钟）';
-      case QualityPreset.standard:
-        return '标准（约 60MB/分钟）';
-      case QualityPreset.high:
-        return '高码率（约 120MB/分钟）';
-    }
-  }
-
   int get baseBitrate {
     switch (this) {
       case QualityPreset.tiny:

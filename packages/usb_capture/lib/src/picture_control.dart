@@ -14,13 +14,13 @@ enum PictureControlId {
   String get label {
     switch (this) {
       case PictureControlId.brightness:
-        return '亮度';
+        return 'Brightness';
       case PictureControlId.contrast:
-        return '对比度';
+        return 'Contrast';
       case PictureControlId.saturation:
-        return '饱和度';
+        return 'Saturation';
       case PictureControlId.hue:
-        return '色调';
+        return 'Hue';
     }
   }
 }

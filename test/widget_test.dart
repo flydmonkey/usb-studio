@@ -269,6 +269,8 @@ class _FakePlatform extends UsbCapturePlatform with MockPlatformInterfaceMixin {
   String? uiLocale;
 }
 
+AppLocalizations zhCopy() => lookupAppLocalizations(const Locale('zh'));
+
 Widget localizedApp({
   required Widget home,
   Locale locale = const Locale('zh'),
@@ -533,7 +535,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-    expect(find.text(LibraryCopy.empty), findsOneWidget);
+    expect(find.text(zhCopy().libraryEmpty), findsOneWidget);
   });
 
   testWidgets('library delete asks for confirmation', (tester) async {
@@ -554,9 +556,9 @@ void main() {
     expect(find.text('USB_20260915_153000_01.mp4'), findsOneWidget);
     await tester.tap(find.byTooltip('删除'));
     await tester.pump();
-    expect(find.text(LibraryCopy.deleteTitle), findsOneWidget);
-    expect(find.text(LibraryCopy.deleteConfirm), findsOneWidget);
-    await tester.tap(find.text(LibraryCopy.cancelAction));
+    expect(find.text(zhCopy().deleteTitle), findsOneWidget);
+    expect(find.text(zhCopy().deleteConfirm), findsOneWidget);
+    await tester.tap(find.text(zhCopy().cancelAction));
     await tester.pump();
     expect(fake.recordings, isNotEmpty);
   });
@@ -591,10 +593,10 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-    expect(find.byTooltip(LibraryCopy.mergeAction), findsNWidgets(2));
-    await tester.tap(find.byTooltip(LibraryCopy.mergeAction).first);
+    expect(find.byTooltip(zhCopy().mergeAction), findsNWidgets(2));
+    await tester.tap(find.byTooltip(zhCopy().mergeAction).first);
     await tester.pump();
-    expect(find.text(LibraryCopy.mergeProgress), findsOneWidget);
+    expect(find.text(zhCopy().mergeProgress), findsOneWidget);
     hold.complete();
     await tester.pump();
     await tester.pump();
@@ -629,7 +631,7 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-    expect(find.byTooltip(LibraryCopy.mergeAction), findsNothing);
+    expect(find.byTooltip(zhCopy().mergeAction), findsNothing);
   });
 
   testWidgets('library tap opens a recording and share does not', (
@@ -687,17 +689,17 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-    expect(find.byTooltip(LibraryCopy.mergeAction), findsNWidgets(2));
-    await tester.tap(find.byTooltip(LibraryCopy.renameAction).first);
+    expect(find.byTooltip(zhCopy().mergeAction), findsNWidgets(2));
+    await tester.tap(find.byTooltip(zhCopy().renameAction).first);
     await tester.pump();
-    expect(find.text(LibraryCopy.renameTitle), findsOneWidget);
+    expect(find.text(zhCopy().renameTitle), findsOneWidget);
     await tester.enterText(find.byType(TextField), '婚礼');
-    await tester.tap(find.text(LibraryCopy.confirmAction));
+    await tester.tap(find.text(zhCopy().confirmAction));
     await tester.pump();
     await tester.pump();
     expect(fake.renamedNames, ['婚礼.mp4']);
     expect(find.text('婚礼.mp4'), findsOneWidget);
-    expect(find.byTooltip(LibraryCopy.mergeAction), findsNothing);
+    expect(find.byTooltip(zhCopy().mergeAction), findsNothing);
   });
 
   testWidgets('auto-record starts after connecting the only device', (

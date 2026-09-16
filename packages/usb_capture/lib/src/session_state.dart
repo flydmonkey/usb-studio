@@ -71,23 +71,6 @@ class CaptureSessionRules {
       );
     }
   }
-
-  static String interruptStatus({
-    required bool disconnected,
-    required bool saved,
-    required bool television,
-  }) {
-    if (disconnected) {
-      if (!saved) {
-        return '采集卡已拔出';
-      }
-      return television ? '采集卡已拔出，已保存到影片目录' : '采集卡已拔出，录制已保存';
-    }
-    if (saved) {
-      return television ? '录制中断，已保存到影片目录' : '录制中断，录制已保存';
-    }
-    return '录制失败。';
-  }
 }
 
 class SessionState {

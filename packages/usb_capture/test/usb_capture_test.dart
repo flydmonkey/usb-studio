@@ -157,8 +157,6 @@ void main() {
     expect(SaveLocation.normalize(null), SaveLocation.gallery);
     expect(SaveLocation.normalize('movies'), SaveLocation.movies);
     expect(SaveLocation.normalize('downloads'), SaveLocation.downloads);
-    expect(SaveLocation.savedStatus(SaveLocation.downloads), '已保存到下载');
-    expect(SaveLocation.savedStatus(SaveLocation.gallery), '已保存到相册');
   });
 
   test('CaptureStatus restores recording HUD fields', () {

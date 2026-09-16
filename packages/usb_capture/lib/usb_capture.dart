@@ -22,7 +22,6 @@ export 'src/capture_format.dart';
 export 'src/capture_status.dart';
 export 'src/picture_control.dart';
 export 'src/platform_profile.dart';
-export 'src/library_copy.dart';
 export 'src/library_name.dart';
 export 'src/recording_result.dart';
 export 'src/saved_recording.dart';

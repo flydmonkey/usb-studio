@@ -7,7 +7,6 @@ import 'package:usb_capture/src/platform_profile.dart';
 import 'package:usb_capture/src/session_state.dart';
 import 'package:usb_capture/src/signal_status.dart';
 import 'package:usb_capture/src/capture_audio_policy.dart';
-import 'package:usb_capture/src/library_copy.dart';
 import 'package:usb_capture/src/library_name.dart';
 import 'package:usb_capture/src/segment_policy.dart';
 import 'package:usb_capture/src/lan_http_url.dart';
@@ -21,17 +20,30 @@ void main() {
         CaptureErrorCode.permissionDenied,
       );
       expect(
-        CaptureError.fromCode('usbHostMissing').message,
-        contains('USB Host'),
+        CaptureError.fromCode('usbHostMissing').code,
+        CaptureErrorCode.usbHostMissing,
       );
       expect(
-        CaptureError.fromCode('powerIssue').message,
-        contains('USB Hub'),
+        CaptureError.fromCode('powerIssue').code,
+        CaptureErrorCode.powerIssue,
       );
       expect(
-        CaptureError.fromCode('unsupportedPlatform').message,
-        contains('Android'),
+        CaptureError.fromCode('unsupportedPlatform').code,
+        CaptureErrorCode.unsupportedPlatform,
       );
+    });
+
+    test('diagnostic message is code plus details, not UI copy', () {
+      expect(
+        CaptureError.fromCode('permissionDenied').message,
+        'permissionDenied',
+      );
+      expect(
+        CaptureError.fromCode('recordingFailed', details: 'concatFailed')
+            .message,
+        'recordingFailed: concatFailed',
+      );
+      expect(CaptureError.fromCode('usbHostMissing').message, isNot(contains('采集卡')));
     });
 
     test('unknown codes stay unknown', () {
@@ -153,9 +165,9 @@ void main() {
         ),
         throwsA(
           isA<CaptureError>().having(
-            (e) => e.message,
-            'message',
-            contains('开启预览'),
+            (e) => e.details,
+            'details',
+            'previewOff',
           ),
         ),
       );
@@ -174,14 +186,6 @@ void main() {
           .interruptRecording(saved: true);
       expect(interrupted.isRecording, isFalse);
       expect(interrupted.lastRecordingSalvaged, isTrue);
-      expect(
-        CaptureSessionRules.interruptStatus(
-          disconnected: true,
-          saved: true,
-          television: false,
-        ),
-        contains('录制已保存'),
-      );
     });
 
     test('interrupt without salvage exits recording and does not claim saved', () {
@@ -190,14 +194,6 @@ void main() {
           .interruptRecording(saved: false);
       expect(interrupted.isRecording, isFalse);
       expect(interrupted.lastRecordingSalvaged, isFalse);
-      expect(
-        CaptureSessionRules.interruptStatus(
-          disconnected: true,
-          saved: false,
-          television: false,
-        ),
-        isNot(contains('已保存')),
-      );
     });
 
     test('must not fall back to the built-in microphone', () {
@@ -252,19 +248,10 @@ void main() {
       expect(SegmentPolicy.normalizeMinutes(1), 1);
       expect(SegmentPolicy.allowedMinutes, containsAll([0, 1, 5, 10, 15, 30]));
       expect(
-        SegmentPolicy.recLabel(
-          elapsed: const Duration(hours: 1, minutes: 2, seconds: 4),
-          segmentIndex: 7,
+        SegmentPolicy.formatElapsed(
+          const Duration(hours: 1, minutes: 2, seconds: 4),
         ),
-        'REC  01:02:04  第7段',
-      );
-      expect(
-        SegmentPolicy.recLabel(
-          elapsed: const Duration(minutes: 3, seconds: 1),
-          segmentIndex: 1,
-          segmented: false,
-        ),
-        'REC  00:03:01',
+        '01:02:04',
       );
     });
 
@@ -313,59 +300,52 @@ void main() {
     });
   });
 
-  group('library copy', () {
-    test('empty state and delete confirmation copy', () {
-      expect(LibraryCopy.empty, contains('还没有录像'));
-      expect(LibraryCopy.deleteTitle, contains('删除'));
-      expect(LibraryCopy.deleteConfirm, contains('无法从本应用恢复'));
-      expect(LibraryCopy.mergeAction, '合并本场');
-    });
-
-    test('concat errors stay readable', () {
+  group('library errors', () {
+    test('concat errors keep details for the app to localize', () {
       expect(
         const CaptureError(
           CaptureErrorCode.recordingFailed,
           details: 'sessionRecording',
-        ).message,
-        contains('停录后再合并'),
+        ).details,
+        'sessionRecording',
       );
       expect(
         const CaptureError(
           CaptureErrorCode.recordingFailed,
           details: 'concatUnsupported',
-        ).message,
-        contains('不支持合并'),
+        ).details,
+        'concatUnsupported',
       );
     });
 
-    test('play and rename errors stay readable', () {
+    test('play and rename errors keep details for the app to localize', () {
       expect(
         const CaptureError(
           CaptureErrorCode.unknown,
           details: 'playFailed',
-        ).message,
-        contains('系统播放器'),
+        ).details,
+        'playFailed',
       );
       expect(
         const CaptureError(
           CaptureErrorCode.unknown,
           details: 'renameTaken',
-        ).message,
-        contains('已有'),
+        ).details,
+        'renameTaken',
       );
       expect(
         const CaptureError(
           CaptureErrorCode.unknown,
           details: 'renameInvalid',
-        ).message,
-        contains('名称'),
+        ).details,
+        'renameInvalid',
       );
       expect(
         const CaptureError(
           CaptureErrorCode.unknown,
           details: 'renameUnsupported',
-        ).message,
-        contains('不支持重命名'),
+        ).details,
+        'renameUnsupported',
       );
     });
 
@@ -417,6 +397,8 @@ void main() {
       });
       expect(signal.hasSignal, isTrue);
       expect(signal.bytesWritten, 1024);
+      expect(signal.hudLabel, '1920×1080 30fps MJPG');
+      expect(const SignalStatus().hudLabel, isEmpty);
       final control = PictureControl.fromMap({
         'id': 'brightness',
         'label': '亮度',
@@ -428,7 +410,7 @@ void main() {
       expect(control.id, PictureControlId.brightness);
       expect(QualityPreset.parse('high'), QualityPreset.high);
       expect(QualityPreset.parse('tiny'), QualityPreset.tiny);
-      expect(QualityPreset.parse('small').optionLabel, contains('省空间'));
+      expect(QualityPreset.parse('small'), QualityPreset.small);
       final event = CaptureEvent.fromMap({
         'type': 'signal',
         'width': 1280,
@@ -474,20 +456,17 @@ void main() {
       );
       expect(LanHttpUrl.pickIpv4(['127.0.0.1']), isNull);
       expect(
-        CaptureError.fromCode('streamFailed', details: 'httpNoNetwork').message,
-        contains('Wi-Fi'),
+        CaptureError.fromCode('streamFailed', details: 'httpNoNetwork').details,
+        'httpNoNetwork',
       );
       expect(
-        CaptureError.fromCode('streamFailed', details: 'httpLiveFailed').message,
-        contains('已录成片'),
+        CaptureError.fromCode('streamFailed', details: 'httpLiveFailed')
+            .details,
+        'httpLiveFailed',
       );
-      expect(
-        CaptureError.fromCode(
-          'streamFailed',
-          details: 'Error 0xfffffff4',
-        ).message,
-        contains('已录成片'),
-      );
+      expect(CaptureError.isCodecNoMemory('Error 0xfffffff4'), isTrue);
+      expect(CaptureError.isCodecNoMemory('no_memory'), isTrue);
+      expect(CaptureError.isCodecNoMemory('httpLiveFailed'), isFalse);
     });
   });
 
@@ -518,17 +497,13 @@ void main() {
 
     test('maps stream errors', () {
       expect(
-        CaptureError.fromCode('streamFailed', details: 'missingUrl').message,
-        contains('推流地址'),
-      );
-      expect(
-        CaptureError.fromCode('streamFailed', details: 'missingUrl').message,
-        isNot(contains('密钥')),
+        CaptureError.fromCode('streamFailed', details: 'missingUrl').details,
+        'missingUrl',
       );
       expect(
         CaptureError.fromCode('streamFailed', details: 'streamUnsupported')
-            .message,
-        contains('不支持推流'),
+            .details,
+        'streamUnsupported',
       );
     });
 

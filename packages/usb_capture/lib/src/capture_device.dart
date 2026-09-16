@@ -12,7 +12,7 @@ class CaptureDevice {
   factory CaptureDevice.fromMap(Map<dynamic, dynamic> map) {
     return CaptureDevice(
       id: map['id'] as String? ?? '',
-      name: map['name'] as String? ?? 'USB 采集卡',
+      name: map['name'] as String? ?? 'USB capture',
       hasAudio: map['hasAudio'] as bool? ?? false,
     );
   }

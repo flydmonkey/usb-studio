@@ -138,7 +138,10 @@ http://192.168.1.8:8080/
 
 ```bash
 flutter test
-cd android && ./gradlew :usb_capture:testDebugUnitTest
+(cd packages/usb_capture && flutter test test)
+(cd android && ./gradlew :usb_capture:testDebugUnitTest)
 ```
+
+`push` / `pull_request` 会走 GitHub Actions：同样这三项，再加上 `flutter build apk --release`，APK 作为 workflow artifact。
 
 真机步骤记在 `test/hardware_acceptance_test.dart`（默认 skip）。换机或换卡时按里面的清单再验一遍：预览、监听、成片进所选位置、片库、锁屏续录、录制中拔线。

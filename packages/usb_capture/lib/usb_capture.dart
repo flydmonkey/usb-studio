@@ -196,15 +196,6 @@ class UsbCapturePreview extends StatelessWidget {
           hitTestBehavior: PlatformViewHitTestBehavior.transparent,
           gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{},
         );
-      case TargetPlatform.iOS:
-        return const UiKitView(
-          viewType: usbCapturePreviewViewType,
-          layoutDirection: TextDirection.ltr,
-          creationParams: creationParams,
-          creationParamsCodec: StandardMessageCodec(),
-          hitTestBehavior: PlatformViewHitTestBehavior.transparent,
-          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{},
-        );
       default:
         return const SizedBox.expand();
     }

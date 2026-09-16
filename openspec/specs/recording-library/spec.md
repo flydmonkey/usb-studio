@@ -5,7 +5,7 @@ Let the operator browse, share, and delete recordings this app saved, without op
 
 ## Requirements
 ### Requirement: List this app's capture recordings
-The app SHALL provide a library screen that lists recordings this app saved (Android: `UsbCapture` items under DCIM, Movies, and Download, plus a user-picked folder when set; iPad: USB_-prefixed items the app can query). Each row SHALL show a readable name and SHALL be usable on television UI mode with D-pad focus. An empty library SHALL explain that recordings appear here after a capture is saved. The library MUST NOT present the entire device gallery as the primary list.
+The app SHALL provide a library screen that lists recordings this app saved (Android: `UsbCapture` items under DCIM, Movies, and Download, plus a user-picked folder when set). Each row SHALL show a readable name and SHALL be usable on television UI mode with D-pad focus. An empty library SHALL explain that recordings appear here after a capture is saved. The library MUST NOT present the entire device gallery as the primary list.
 
 #### Scenario: Saved segments appear in the library
 - **WHEN** the user has saved one or more capture recordings and opens the library
@@ -16,7 +16,7 @@ The app SHALL provide a library screen that lists recordings this app saved (And
 - **THEN** the app SHALL show an empty state and MUST NOT crash
 
 ### Requirement: Share and delete from the library
-The user SHALL be able to share a listed recording through the system share sheet and to delete a listed recording after confirmation. Deleting SHALL remove the MediaStore or Photos item the app listed. If share is unavailable (for example no targets on some TVs), the app SHALL show a readable failure and MUST leave the file in place.
+The user SHALL be able to share a listed recording through the system share sheet and to delete a listed recording after confirmation. Deleting SHALL remove the MediaStore item the app listed. If share is unavailable (for example no targets on some TVs), the app SHALL show a readable failure and MUST leave the file in place.
 
 #### Scenario: Share a recording
 - **WHEN** the user chooses share on a listed recording and a share target exists

@@ -67,7 +67,7 @@ The app SHALL allow hiding chrome (bottom controls and secondary HUD) so the pic
 - **THEN** the app SHALL restore chrome and MUST NOT exit the app as the first action
 
 ### Requirement: Snapshot of current video
-While preview is running, the user SHALL be able to save a still image of the current capture video frame (not a screenshot of the Flutter chrome). On iPad the image SHALL be saved to Photos. On Android it SHALL be saved to the system media store images collection. Taking a snapshot MUST NOT stop preview. Taking a snapshot MUST NOT stop an in-progress recording.
+While preview is running, the user SHALL be able to save a still image of the current capture video frame (not a screenshot of the Flutter chrome). The image SHALL be saved to the system media store images collection. Taking a snapshot MUST NOT stop preview. Taking a snapshot MUST NOT stop an in-progress recording.
 
 #### Scenario: Save still while previewing
 - **WHEN** preview is running and the user takes a snapshot

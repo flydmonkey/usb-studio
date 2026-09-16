@@ -2,7 +2,7 @@
 
 Flutter 应用：预览 USB 采集卡的画面和声音，并可录制成 MP4。
 
-支持 USB-C iPad（iPadOS 17+）、Android 手机/平板（USB OTG）和 Android TV / 电视盒（USB Host）。iPhone 无法采集。
+支持 Android 手机/平板（USB OTG）和 Android TV / 电视盒（USB Host）。
 
 ## 运行
 

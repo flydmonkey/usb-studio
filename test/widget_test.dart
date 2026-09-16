@@ -267,7 +267,9 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('shows iPhone unsupported message', (tester) async {
+  testWidgets('shows unsupported message when capture is not supported', (
+    tester,
+  ) async {
     final fake = _FakePlatform(supported: false);
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
@@ -280,7 +282,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.textContaining('iPhone'), findsWidgets);
+    expect(find.textContaining('Android'), findsWidgets);
     expect(find.text('开始录制'), findsOneWidget);
     expect(find.text('推流'), findsNothing);
   });
@@ -646,59 +648,6 @@ void main() {
     expect(find.byTooltip(LibraryCopy.mergeAction), findsNothing);
   });
 
-  testWidgets('library hides merge on iPad', (tester) async {
-    final fake = _FakePlatform()
-      ..recordings = const [
-        SavedRecording(
-          id: '1',
-          name: 'USB_20260915_153000_01.mp4',
-          uri: 'content://1',
-        ),
-        SavedRecording(
-          id: '2',
-          name: 'USB_20260915_153000_02.mp4',
-          uri: 'content://2',
-        ),
-      ];
-    UsbCapturePlatform.instance = fake;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: LibraryPage(
-          plugin: UsbCapture(),
-          television: false,
-          mergeEnabled: false,
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    expect(find.byTooltip(LibraryCopy.mergeAction), findsNothing);
-  });
-
-  testWidgets('library hides rename on iPad', (tester) async {
-    final fake = _FakePlatform()
-      ..recordings = const [
-        SavedRecording(
-          id: '1',
-          name: 'USB_20260915_153000_01.mp4',
-          uri: 'content://1',
-        ),
-      ];
-    UsbCapturePlatform.instance = fake;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: LibraryPage(
-          plugin: UsbCapture(),
-          television: false,
-          renameEnabled: false,
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    expect(find.byTooltip(LibraryCopy.renameAction), findsNothing);
-  });
-
   testWidgets('auto-record starts after connecting the only device', (
     tester,
   ) async {
@@ -958,7 +907,7 @@ void main() {
     expect(tile.value, isFalse);
   });
 
-  testWidgets('settings hides lan playback on unsupported iPhone', (
+  testWidgets('settings hides lan playback when unsupported', (
     tester,
   ) async {
     final fake = _FakePlatform(supported: false);

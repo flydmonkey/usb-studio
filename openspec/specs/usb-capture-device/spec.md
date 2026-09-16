@@ -45,12 +45,8 @@ The app SHALL update device availability when a capture card is plugged in or un
 - **WHEN** the currently open capture card is unplugged
 - **THEN** the app SHALL stop preview, abort any in-progress recording, and show a disconnected state
 
-### Requirement: Unsupported platform and hardware
-The app SHALL refuse USB capture on iPhone and SHALL tell the user that USB capture requires a USB-C iPad on iPadOS 17 or later. On Android, if USB Host/OTG is missing, UVC isochronous transfer fails, or the device cannot be opened (including insufficient power), the app SHALL show a specific error rather than a blank preview. Errors about power SHALL mention using a powered USB hub when needed.
-
-#### Scenario: iPhone launch
-- **WHEN** the app is launched on iPhone
-- **THEN** the app MUST show that USB capture is not supported on iPhone and MUST NOT attempt to open a USB capture session
+### Requirement: Unsupported hardware
+On Android, if USB Host/OTG is missing, UVC isochronous transfer fails, or the device cannot be opened (including insufficient power), the app SHALL show a specific error rather than a blank preview. Errors about power SHALL mention using a powered USB hub when needed.
 
 #### Scenario: Android without USB Host
 - **WHEN** the Android device does not provide USB Host

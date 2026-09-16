@@ -2,9 +2,9 @@ schema: spec-driven
 
 context: |
   Tech stack: Flutter app at repo root + in-repo plugin packages/usb_capture.
-  Platforms: iPadOS 17+ (USB-C iPad only), Android phone/tablet (USB OTG), Android TV / TV boxes (USB Host). Same APK for phone and TV.
-  Capture: iPad uses AVFoundation external UVC/UAC; Android uses USB Host + UVC library (AUSBC or equivalent libuvc), not CameraX as the primary path.
+  Platforms: Android phone/tablet (USB OTG), Android TV / TV boxes (USB Host). Same APK for phone and TV.
+  Capture: Android uses USB Host + UVC library (AUSBC or equivalent libuvc), not CameraX as the primary path.
   Product: live preview of USB capture-card video, monitor capture-card audio, optional H.264+AAC MP4 recording. Android default save is DCIM/UsbCapture; operator may choose Movies, Downloads, or a custom folder.
   UI: touch-first on phone/tablet; 10-foot D-pad UI on television uiMode. leanback feature required=false. Capture bar groups snapshot, record, and mute; library and settings sit in the header.
-  Out of scope: iPhone USB capture, desktop, RTMP, built-in camera fallback, Fire TV proprietary APIs, HDMI-CEC, capturing the TV's own HDMI loop.
-  Hardware: UVC/UAC HDMI capture dongles. Emulators cannot verify capture; use real iPad, OTG phone, and USB-Host TV/box.
+  Out of scope: iOS, desktop, built-in camera fallback, Fire TV proprietary APIs, HDMI-CEC, capturing the TV's own HDMI loop.
+  Hardware: UVC/UAC HDMI capture dongles. Emulators cannot verify capture; use real OTG phone and USB-Host TV/box.

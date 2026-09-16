@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:usb_capture/usb_capture.dart';
 
@@ -28,15 +27,9 @@ class _LibraryPageState extends State<LibraryPage> {
 
   bool get _tv => widget.television;
 
-  bool get _mergeSupported {
-    return widget.mergeEnabled ??
-        (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
-  }
+  bool get _mergeSupported => widget.mergeEnabled ?? true;
 
-  bool get _renameSupported {
-    return widget.renameEnabled ??
-        (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
-  }
+  bool get _renameSupported => widget.renameEnabled ?? true;
 
   @override
   void initState() {

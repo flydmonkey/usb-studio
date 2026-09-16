@@ -30,7 +30,7 @@ void main() {
       );
       expect(
         CaptureError.fromCode('unsupportedPlatform').message,
-        contains('iPhone'),
+        contains('Android'),
       );
     });
 

@@ -39,11 +39,7 @@ A completed recording SHALL be an MP4 containing H.264 video and AAC audio from 
 - **THEN** the app SHALL still save video and MUST indicate that the file has no capture audio
 
 ### Requirement: Persist recordings to the system library
-On iPad, the app SHALL save completed recordings to the Photos library. On Android phones, tablets, and TV, the default destination SHALL be the system album at `DCIM/UsbCapture`. The operator SHALL be able to choose album, movies (`Movies/UsbCapture`), downloads (`Download/UsbCapture`), or a user-picked folder. Settings labels for those last two choices SHALL be 「下载」 and 「自定义」. If a custom or downloads write fails, the app MAY fall back to the album rather than discard a salvageable file. The app SHALL tell the operator which destination was used after a save.
-
-#### Scenario: iPad save
-- **WHEN** recording completes on iPad
-- **THEN** the MP4 SHALL appear in Photos
+On Android phones, tablets, and TV, the default destination SHALL be the system album at `DCIM/UsbCapture`. The operator SHALL be able to choose album, movies (`Movies/UsbCapture`), downloads (`Download/UsbCapture`), or a user-picked folder. Settings labels for those last two choices SHALL be 「下载」 and 「自定义」. If a custom or downloads write fails, the app MAY fall back to the album rather than discard a salvageable file. The app SHALL tell the operator which destination was used after a save.
 
 #### Scenario: Android default album
 - **WHEN** recording completes on Android with the default save location
@@ -66,7 +62,7 @@ If the capture device is unplugged or the session fails while recording, the app
 
 #### Scenario: Unplug while recording saves the file
 - **WHEN** the active capture card is unplugged during recording and a non-empty video file can be finalized
-- **THEN** the app SHALL write the MP4 to Photos (iPad) or the operator's Android save location, clear the recording indicator, show a disconnected state, and SHALL tell the user that the recording was saved
+- **THEN** the app SHALL write the MP4 to the operator's Android save location, clear the recording indicator, show a disconnected state, and SHALL tell the user that the recording was saved
 
 #### Scenario: Unplug while recording with nothing to save
 - **WHEN** the active capture card is unplugged during recording and no non-empty video file can be finalized
@@ -105,10 +101,6 @@ Completed recordings SHALL use a timestamped, human-readable file name that iden
 - **WHEN** a recording completes on Android
 - **THEN** the saved item SHALL use a timestamped capture file name rather than an opaque system-only title
 
-#### Scenario: iPad Photos name
-- **WHEN** a recording completes on iPad
-- **THEN** the saved file SHALL use a timestamped capture file name when the platform allows setting it
-
 ### Requirement: Recording size in session UI
 While recording, the app SHALL show elapsed time and SHALL show an approximate output size when the encoder reports bytes written or when size can be estimated from the active bitrate. The value MAY be approximate.
 
@@ -117,7 +109,7 @@ While recording, the app SHALL show elapsed time and SHALL show an approximate o
 - **THEN** the UI SHALL show elapsed time together with an approximate file size
 
 ### Requirement: Continue recording when the app is not in the foreground
-On Android, while recording is in progress, the app SHALL keep capturing after the user locks the screen or switches to another app. The app SHALL show a persistent notification that recording is active. Stopping recording, unplugging the capture device, or a failed salvage SHALL end the foreground capture. On iPad, recording MAY stop when the app is backgrounded; the app MUST NOT claim iPad background capture in this change.
+On Android, while recording is in progress, the app SHALL keep capturing after the user locks the screen or switches to another app. The app SHALL show a persistent notification that recording is active. Stopping recording, unplugging the capture device, or a failed salvage SHALL end the foreground capture.
 
 #### Scenario: Lock screen during Android recording
 - **WHEN** the user starts recording on Android and then locks the screen

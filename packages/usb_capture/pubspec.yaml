@@ -1,5 +1,5 @@
 name: usb_capture
-description: USB UVC/UAC capture preview and recording for iPad and Android.
+description: USB UVC/UAC capture preview and recording for Android.
 version: 0.0.1
 homepage:
 
@@ -36,8 +36,6 @@ flutter:
     platforms:
       android:
         package: com.usbcamera.capture.usb_capture
-        pluginClass: UsbCapturePlugin
-      ios:
         pluginClass: UsbCapturePlugin
 
   # To add assets to your plugin package, add an assets section, like this:

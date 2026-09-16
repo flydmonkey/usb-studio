@@ -39,7 +39,7 @@ class CaptureError implements Exception {
       case CaptureErrorCode.usbHostMissing:
         return '此设备不支持 USB Host，无法使用采集卡。';
       case CaptureErrorCode.unsupportedPlatform:
-        return 'USB 采集仅支持 USB-C iPad（iPadOS 17+）与 Android。iPhone 无法采集。';
+        return 'USB 采集仅支持 Android 手机、平板和电视。';
       case CaptureErrorCode.uvcFailed:
         return '无法打开采集卡。请确认设备为 UVC 采集卡。';
       case CaptureErrorCode.powerIssue:

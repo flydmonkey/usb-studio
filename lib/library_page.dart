@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:usb_capture/usb_capture.dart';
+import 'package:usb_studio/capture_copy.dart';
+import 'package:usb_studio/l10n/app_localizations.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({
@@ -27,6 +29,8 @@ class _LibraryPageState extends State<LibraryPage> {
 
   bool get _tv => widget.television;
 
+  AppLocalizations get _l10n => AppLocalizations.of(context);
+
   bool get _mergeSupported => widget.mergeEnabled ?? true;
 
   bool get _renameSupported => widget.renameEnabled ?? true;
@@ -52,7 +56,7 @@ class _LibraryPageState extends State<LibraryPage> {
     } on CaptureError catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.message;
+        _error = localizeCaptureError(_l10n, error);
         _loading = false;
       });
     }
@@ -73,20 +77,20 @@ class _LibraryPageState extends State<LibraryPage> {
       await widget.plugin.openRecording(recording.id);
     } on CaptureError catch (error) {
       if (!mounted) return;
-      _snack(error.message);
+      _snack(localizeCaptureError(_l10n, error));
     }
   }
 
   Future<void> _share(SavedRecording recording) async {
     if (!recording.shareAvailable) {
-      _snack(LibraryCopy.shareUnavailable);
+      _snack(_l10n.shareUnavailable);
       return;
     }
     try {
       await widget.plugin.shareRecording(recording.id);
     } on CaptureError {
       if (!mounted) return;
-      _snack(LibraryCopy.shareFailed);
+      _snack(_l10n.shareFailed);
     }
   }
 
@@ -121,7 +125,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: Text(
-                    LibraryCopy.mergeProgress,
+                    _l10n.mergeProgress,
                     style: TextStyle(fontSize: _tv ? 20 : 16),
                   ),
                 ),
@@ -146,7 +150,7 @@ class _LibraryPageState extends State<LibraryPage> {
     } on CaptureError catch (error) {
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      _snack(error.message);
+      _snack(localizeCaptureError(_l10n, error));
     } finally {
       if (mounted) {
         setState(() => _merging = false);
@@ -161,7 +165,7 @@ class _LibraryPageState extends State<LibraryPage> {
       builder: (context) {
         return AlertDialog(
           title: Text(
-            LibraryCopy.renameTitle,
+            _l10n.renameTitle,
             style: TextStyle(fontSize: _tv ? 24 : 18),
           ),
           content: TextField(
@@ -174,14 +178,14 @@ class _LibraryPageState extends State<LibraryPage> {
               autofocus: _tv,
               onPressed: () => Navigator.pop(context),
               child: Text(
-                LibraryCopy.cancelAction,
+                _l10n.cancelAction,
                 style: TextStyle(fontSize: _tv ? 20 : 16),
               ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, controller.text),
               child: Text(
-                LibraryCopy.confirmAction,
+                _l10n.confirmAction,
                 style: TextStyle(fontSize: _tv ? 20 : 16),
               ),
             ),
@@ -197,10 +201,13 @@ class _LibraryPageState extends State<LibraryPage> {
     if (next == null) {
       if (!mounted) return;
       _snack(
-        const CaptureError(
-          CaptureErrorCode.unknown,
-          details: 'renameInvalid',
-        ).message,
+        localizeCaptureError(
+          _l10n,
+          const CaptureError(
+            CaptureErrorCode.unknown,
+            details: 'renameInvalid',
+          ),
+        ),
       );
       return;
     }
@@ -214,10 +221,13 @@ class _LibraryPageState extends State<LibraryPage> {
     )) {
       if (!mounted) return;
       _snack(
-        const CaptureError(
-          CaptureErrorCode.unknown,
-          details: 'renameTaken',
-        ).message,
+        localizeCaptureError(
+          _l10n,
+          const CaptureError(
+            CaptureErrorCode.unknown,
+            details: 'renameTaken',
+          ),
+        ),
       );
       return;
     }
@@ -226,7 +236,7 @@ class _LibraryPageState extends State<LibraryPage> {
       await _reload();
     } on CaptureError catch (error) {
       if (!mounted) return;
-      _snack(error.message);
+      _snack(localizeCaptureError(_l10n, error));
     }
   }
 
@@ -237,11 +247,11 @@ class _LibraryPageState extends State<LibraryPage> {
       builder: (context) {
         return AlertDialog(
           title: Text(
-            LibraryCopy.deleteTitle,
+            _l10n.deleteTitle,
             style: TextStyle(fontSize: _tv ? 24 : 18),
           ),
           content: Text(
-            LibraryCopy.deleteConfirm,
+            _l10n.deleteConfirm,
             style: TextStyle(fontSize: _tv ? 20 : 16),
           ),
           actions: [
@@ -249,14 +259,14 @@ class _LibraryPageState extends State<LibraryPage> {
               autofocus: _tv,
               onPressed: () => Navigator.pop(context, false),
               child: Text(
-                LibraryCopy.cancelAction,
+                _l10n.cancelAction,
                 style: TextStyle(fontSize: _tv ? 20 : 16),
               ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
               child: Text(
-                LibraryCopy.deleteAction,
+                _l10n.deleteAction,
                 style: TextStyle(fontSize: _tv ? 20 : 16),
               ),
             ),
@@ -270,7 +280,7 @@ class _LibraryPageState extends State<LibraryPage> {
       await _reload();
     } on CaptureError catch (error) {
       if (!mounted) return;
-      _snack(error.message);
+      _snack(localizeCaptureError(_l10n, error));
     }
   }
 
@@ -286,7 +296,7 @@ class _LibraryPageState extends State<LibraryPage> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text(
-          LibraryCopy.title,
+          _l10n.library,
           style: TextStyle(fontSize: _tv ? 24 : 18),
         ),
         backgroundColor: Colors.black,
@@ -315,7 +325,7 @@ class _LibraryPageState extends State<LibraryPage> {
     if (_items.isEmpty) {
       return Center(
         child: Text(
-          LibraryCopy.empty,
+          _l10n.libraryEmpty,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: _tv ? 24 : 16, color: Colors.white70),
         ),
@@ -347,13 +357,13 @@ class _LibraryPageState extends State<LibraryPage> {
             children: [
               if (_canMerge(item))
                 IconButton(
-                  tooltip: LibraryCopy.mergeAction,
+                  tooltip: _l10n.mergeAction,
                   onPressed: () => _merge(item),
                   icon: Icon(Icons.merge_type, size: _tv ? 32 : 22),
                 ),
               if (_renameSupported)
                 IconButton(
-                  tooltip: LibraryCopy.renameAction,
+                  tooltip: _l10n.renameAction,
                   onPressed: () => _rename(item),
                   icon: Icon(
                     Icons.drive_file_rename_outline,
@@ -362,13 +372,13 @@ class _LibraryPageState extends State<LibraryPage> {
                 ),
               if (item.shareAvailable)
                 IconButton(
-                  tooltip: '分享',
+                  tooltip: _l10n.shareAction,
                   onPressed: () => _share(item),
                   icon: Icon(Icons.share, size: _tv ? 32 : 22),
                 )
               else
                 Tooltip(
-                  message: LibraryCopy.shareUnavailable,
+                  message: _l10n.shareUnavailable,
                   child: Icon(
                     Icons.share,
                     size: _tv ? 32 : 22,
@@ -377,7 +387,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 ),
               if (item.deleteAvailable)
                 IconButton(
-                  tooltip: '删除',
+                  tooltip: _l10n.deleteAction,
                   onPressed: () => _delete(item),
                   icon: Icon(Icons.delete_outline, size: _tv ? 32 : 22),
                 ),

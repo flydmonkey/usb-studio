@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">USB Studio</string>
+    <string name="notification_channel">Recording</string>
+    <string name="notification_recording_segment">Recording %1$s · Seg %2$d</string>
+    <string name="notification_recording_stream_segment">Recording %1$s · Seg %2$d · Streaming</string>
+    <string name="notification_recording_stream">Recording %1$s · Streaming</string>
+    <string name="notification_streaming">Streaming %1$s</string>
+    <string name="notification_recording">Recording %1$s</string>
+    <string name="notification_lan">LAN playback</string>
+    <string name="notification_lan_suffix">%1$s · LAN playback</string>
+    <string name="share_recording">Share recording</string>
+    <string name="open_recording">Open recording</string>
+    <string name="usb_capture_card">USB capture card</string>
+    <string name="lan_page_title">USB Studio · LAN playback</string>
+    <string name="lan_page_hint">Open this HTTP address on the same Wi-Fi. HTTPS is not required. Live starts muted; tap the player to unmute.</string>
+    <string name="lan_live">Live</string>
+    <string name="lan_waiting_card">Waiting for capture card</string>
+    <string name="lan_recordings">Recordings</string>
+    <string name="lan_loading">Loading…</string>
+    <string name="lan_live_unsupported">This browser cannot play live video</string>
+    <string name="lan_load_failed">Could not load recordings</string>
+    <string name="lan_empty">No recordings yet</string>
+    <string name="lan_unnamed">Untitled</string>
+</resources>

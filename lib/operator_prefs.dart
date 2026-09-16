@@ -1,6 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:usb_capture/usb_capture.dart';
 
+import 'locale_mode.dart';
+
 class OperatorPrefs {
   const OperatorPrefs({
     this.segmentMinutes = 10,
@@ -16,6 +18,7 @@ class OperatorPrefs {
     this.rtmpServer = '',
     this.rtmpKey = '',
     this.httpLanEnabled = false,
+    this.localeMode = LocaleMode.system,
   });
 
   final int segmentMinutes;
@@ -31,6 +34,7 @@ class OperatorPrefs {
   final String rtmpServer;
   final String rtmpKey;
   final bool httpLanEnabled;
+  final LocaleMode localeMode;
 
   static const _segmentKey = 'operator.segmentMinutes';
   static const _autoRecordKey = 'operator.autoRecord';
@@ -45,6 +49,7 @@ class OperatorPrefs {
   static const _rtmpServerKey = 'operator.rtmpServer';
   static const _rtmpKeyKey = 'operator.rtmpKey';
   static const _httpLanEnabledKey = 'operator.httpLanEnabled';
+  static const _localeModeKey = 'operator.localeMode';
   static const _keep = Object();
 
   OperatorPrefs copyWith({
@@ -61,6 +66,7 @@ class OperatorPrefs {
     String? rtmpServer,
     String? rtmpKey,
     bool? httpLanEnabled,
+    LocaleMode? localeMode,
   }) {
     return OperatorPrefs(
       segmentMinutes: segmentMinutes ?? this.segmentMinutes,
@@ -78,6 +84,7 @@ class OperatorPrefs {
       rtmpServer: rtmpServer ?? this.rtmpServer,
       rtmpKey: rtmpKey ?? this.rtmpKey,
       httpLanEnabled: httpLanEnabled ?? this.httpLanEnabled,
+      localeMode: localeMode ?? this.localeMode,
     );
   }
 
@@ -99,6 +106,7 @@ class OperatorPrefs {
       rtmpServer: stored.getString(_rtmpServerKey) ?? '',
       rtmpKey: stored.getString(_rtmpKeyKey) ?? '',
       httpLanEnabled: stored.getBool(_httpLanEnabledKey) ?? false,
+      localeMode: LocaleMode.fromStored(stored.getString(_localeModeKey)),
     );
   }
 
@@ -127,6 +135,7 @@ class OperatorPrefs {
     await stored.setString(_rtmpServerKey, rtmpServer);
     await stored.setString(_rtmpKeyKey, rtmpKey);
     await stored.setBool(_httpLanEnabledKey, httpLanEnabled);
+    await stored.setString(_localeModeKey, localeMode.storageKey);
     return this;
   }
 }

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notification_channel">録画</string>
+    <string name="notification_recording_segment">録画中 %1$s · %2$d本目</string>
+    <string name="notification_recording_stream_segment">録画中 %1$s · %2$d本目 · 配信中</string>
+    <string name="notification_recording_stream">録画中 %1$s · 配信中</string>
+    <string name="notification_streaming">配信中 %1$s</string>
+    <string name="notification_recording">録画中 %1$s</string>
+    <string name="notification_lan">LAN再生</string>
+    <string name="notification_lan_suffix">%1$s · LAN再生</string>
+    <string name="share_recording">録画を共有</string>
+    <string name="open_recording">録画を開く</string>
+    <string name="usb_capture_card">USBキャプチャ</string>
+    <string name="lan_page_title">USB Studio · LAN再生</string>
+    <string name="lan_page_hint">同じWi-FiのHTTPで開けます。HTTPS不要。ライブは消音開始、プレーヤーをタップで解除。</string>
+    <string name="lan_live">ライブ</string>
+    <string name="lan_waiting_card">キャプチャ待ち</string>
+    <string name="lan_recordings">録画</string>
+    <string name="lan_loading">読み込み中…</string>
+    <string name="lan_live_unsupported">このブラウザではライブ再生できません</string>
+    <string name="lan_load_failed">録画を読み込めません</string>
+    <string name="lan_empty">録画はまだありません</string>
+    <string name="lan_unnamed">無題</string>
+</resources>

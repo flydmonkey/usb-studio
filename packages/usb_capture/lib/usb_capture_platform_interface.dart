@@ -155,6 +155,10 @@ abstract class UsbCapturePlatform extends PlatformInterface {
     throw UnimplementedError('setSaveLocation() has not been implemented.');
   }
 
+  Future<void> setUiLocale(String tag) {
+    throw UnimplementedError('setUiLocale() has not been implemented.');
+  }
+
   Future<SaveLocation?> pickSaveFolder() {
     throw UnimplementedError('pickSaveFolder() has not been implemented.');
   }

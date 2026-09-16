@@ -241,6 +241,11 @@ class MethodChannelUsbCapture extends UsbCapturePlatform {
   }
 
   @override
+  Future<void> setUiLocale(String tag) async {
+    await _invoke('setUiLocale', {'tag': tag});
+  }
+
+  @override
   Stream<CaptureEvent> events() {
     return eventChannel.receiveBroadcastStream().map((event) {
       if (event is Map) {

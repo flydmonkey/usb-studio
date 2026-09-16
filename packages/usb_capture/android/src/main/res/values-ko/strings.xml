@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notification_channel">녹화</string>
+    <string name="notification_recording_segment">녹화 중 %1$s · %2$d번째</string>
+    <string name="notification_recording_stream_segment">녹화 중 %1$s · %2$d번째 · 송출 중</string>
+    <string name="notification_recording_stream">녹화 중 %1$s · 송출 중</string>
+    <string name="notification_streaming">송출 중 %1$s</string>
+    <string name="notification_recording">녹화 중 %1$s</string>
+    <string name="notification_lan">LAN 재생</string>
+    <string name="notification_lan_suffix">%1$s · LAN 재생</string>
+    <string name="share_recording">녹화 공유</string>
+    <string name="open_recording">녹화 열기</string>
+    <string name="usb_capture_card">USB 캡처</string>
+    <string name="lan_page_title">USB Studio · LAN 재생</string>
+    <string name="lan_page_hint">같은 Wi-Fi의 HTTP로 열 수 있습니다. HTTPS 불필요. 라이브는 음소거로 시작하며, 플레이어를 탭하면 소리가 납니다.</string>
+    <string name="lan_live">라이브</string>
+    <string name="lan_waiting_card">캡처 대기</string>
+    <string name="lan_recordings">녹화</string>
+    <string name="lan_loading">불러오는 중…</string>
+    <string name="lan_live_unsupported">이 브라우저에서는 라이브를 재생할 수 없습니다</string>
+    <string name="lan_load_failed">녹화를 불러올 수 없습니다</string>
+    <string name="lan_empty">녹화가 아직 없습니다</string>
+    <string name="lan_unnamed">제목 없음</string>
+</resources>

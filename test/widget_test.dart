@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:usb_studio/l10n/app_localizations.dart';
 import 'package:usb_studio/library_page.dart';
 import 'package:usb_studio/operator_prefs.dart';
 import 'package:usb_studio/preview_page.dart';
@@ -247,6 +248,11 @@ class _FakePlatform extends UsbCapturePlatform with MockPlatformInterfaceMixin {
     return pickedFolder;
   }
 
+  @override
+  Future<void> setUiLocale(String tag) async {
+    uiLocale = tag;
+  }
+
   List<SavedRecording> recordings = [];
   final sharedIds = <String>[];
   final openedIds = <String>[];
@@ -260,6 +266,20 @@ class _FakePlatform extends UsbCapturePlatform with MockPlatformInterfaceMixin {
   String? savedUri;
   bool pickFolderCalled = false;
   SaveLocation? pickedFolder;
+  String? uiLocale;
+}
+
+Widget localizedApp({
+  required Widget home,
+  Locale locale = const Locale('zh'),
+}) {
+  return MaterialApp(
+    locale: locale,
+    localeResolutionCallback: (_, _) => locale,
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: home,
+  );
 }
 
 void main() {
@@ -273,7 +293,7 @@ void main() {
     final fake = _FakePlatform(supported: false);
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -295,7 +315,7 @@ void main() {
     await tester.pumpWidget(
       MediaQuery(
         data: const MediaQueryData(size: Size(1920, 1080)),
-        child: MaterialApp(
+        child: localizedApp(
           home: PreviewPage(
             plugin: UsbCapture(),
             profile: await fake.getPlatformProfile(),
@@ -318,7 +338,7 @@ void main() {
     final fake = _FakePlatform();
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -341,13 +361,37 @@ void main() {
     expect(find.textContaining('请先连接采集卡'), findsWidgets);
   });
 
+  testWidgets('header is not a live camcorder before a capture card is connected', (
+    tester,
+  ) async {
+    final fake = _FakePlatform();
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('请插入 USB 采集卡'), findsWidgets);
+    expect(find.byIcon(Icons.videocam), findsNothing);
+    expect(find.byIcon(Icons.usb_off), findsOneWidget);
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.usb_off)).color,
+      Colors.white70,
+    );
+  });
+
   testWidgets('can start recording after turning preview off', (tester) async {
     final fake = _FakePlatform(
       devices: const [CaptureDevice(id: 'usb-1', name: '采集卡', hasAudio: true)],
     );
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -358,6 +402,14 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
+    expect(find.byIcon(Icons.usb_off), findsNothing);
+    expect(find.byIcon(Icons.videocam), findsOneWidget);
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.videocam)).color,
+      Colors.lightGreenAccent,
+    );
+    expect(find.text('采集卡  ·  采集卡'), findsNothing);
+    expect(find.text('采集卡'), findsOneWidget);
     expect(find.text('预览已关闭，仍可录制'), findsOneWidget);
     expect(find.text('关闭预览'), findsNothing);
     await tester.tap(find.text('开始录制'));
@@ -375,7 +427,7 @@ void main() {
     addTearDown(fake.eventsController.close);
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -417,7 +469,7 @@ void main() {
     addTearDown(fake.eventsController.close);
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -448,7 +500,7 @@ void main() {
     addTearDown(fake.eventsController.close);
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -477,7 +529,7 @@ void main() {
     final fake = _FakePlatform();
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(home: LibraryPage(plugin: UsbCapture(), television: false)),
+      localizedApp(home: LibraryPage(plugin: UsbCapture(), television: false)),
     );
     await tester.pump();
     await tester.pump();
@@ -495,7 +547,7 @@ void main() {
       ];
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(home: LibraryPage(plugin: UsbCapture(), television: true)),
+      localizedApp(home: LibraryPage(plugin: UsbCapture(), television: true)),
     );
     await tester.pump();
     await tester.pump();
@@ -529,7 +581,7 @@ void main() {
       ];
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: LibraryPage(
           plugin: UsbCapture(),
           television: true,
@@ -567,7 +619,7 @@ void main() {
       ];
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: LibraryPage(
           plugin: UsbCapture(),
           television: false,
@@ -593,7 +645,7 @@ void main() {
       ];
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(home: LibraryPage(plugin: UsbCapture(), television: false)),
+      localizedApp(home: LibraryPage(plugin: UsbCapture(), television: false)),
     );
     await tester.pump();
     await tester.pump();
@@ -624,7 +676,7 @@ void main() {
       ];
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: LibraryPage(
           plugin: UsbCapture(),
           television: true,
@@ -656,7 +708,7 @@ void main() {
     );
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -679,7 +731,7 @@ void main() {
     final fake = _FakePlatform();
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -697,7 +749,8 @@ void main() {
     expect(find.text('预览'), findsWidgets);
     expect(find.text('录制画质'), findsOneWidget);
     expect(find.text('标准（约 60MB/分钟）'), findsWidgets);
-    expect(find.text('开启预览'), findsOneWidget);
+    expect(find.text('开启预览'), findsNothing);
+    expect(find.text('预览'), findsWidgets);
     expect(find.text('保存位置'), findsOneWidget);
     expect(find.text('相册'), findsWidgets);
     expect(
@@ -772,7 +825,7 @@ void main() {
       );
       UsbCapturePlatform.instance = fake;
       await tester.pumpWidget(
-        MaterialApp(
+        localizedApp(
           home: PreviewPage(
             plugin: UsbCapture(),
             profile: await fake.getPlatformProfile(),
@@ -810,7 +863,7 @@ void main() {
     );
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -842,7 +895,7 @@ void main() {
     final fake = _FakePlatform();
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -854,7 +907,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byTooltip('设置'));
     await tester.pump();
-    final lanSwitch = find.widgetWithText(SwitchListTile, '局域网播放');
+    final lanSwitch = find.byKey(const Key('lan-playback'));
     expect(lanSwitch, findsOneWidget);
     await tester.ensureVisible(lanSwitch);
     await tester.pumpAndSettle();
@@ -875,7 +928,7 @@ void main() {
     final fake = _FakePlatform();
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -887,7 +940,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byTooltip('设置'));
     await tester.pump();
-    final lanSwitch = find.widgetWithText(SwitchListTile, '局域网播放');
+    final lanSwitch = find.byKey(const Key('lan-playback'));
     expect(lanSwitch, findsOneWidget);
     await tester.ensureVisible(lanSwitch);
     await tester.pumpAndSettle();
@@ -903,7 +956,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('http://'), findsNothing);
     expect(fake.httpServerStopped, isTrue);
-    final tile = tester.widget<SwitchListTile>(lanSwitch);
+    final tile = tester.widget<Switch>(lanSwitch);
     expect(tile.value, isFalse);
   });
 
@@ -913,7 +966,7 @@ void main() {
     final fake = _FakePlatform(supported: false);
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -934,7 +987,7 @@ void main() {
     final fake = _FakePlatform();
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -959,7 +1012,7 @@ void main() {
     );
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -982,7 +1035,7 @@ void main() {
     );
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
-      MaterialApp(
+      localizedApp(
         home: PreviewPage(
           plugin: UsbCapture(),
           profile: await fake.getPlatformProfile(),
@@ -1000,5 +1053,105 @@ void main() {
     await tester.pump();
     expect(fake.streamStarted, isTrue);
     expect(fake.lastStreamUrl, 'rtmp://live.example/live/stream');
+  });
+
+  testWidgets('english locale uses english capture bar', (tester) async {
+    final fake = _FakePlatform();
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        locale: const Locale('en'),
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Record'), findsOneWidget);
+    expect(find.textContaining('录制'), findsNothing);
+    expect(find.text('请插入 USB 采集卡'), findsNothing);
+    expect(find.text('Insert USB capture'), findsWidgets);
+  });
+
+  testWidgets('japanese locale uses japanese capture bar', (tester) async {
+    final fake = _FakePlatform();
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        locale: const Locale('ja'),
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('録画'), findsOneWidget);
+    expect(find.textContaining('录制'), findsNothing);
+  });
+
+  testWidgets('korean locale uses korean capture bar', (tester) async {
+    final fake = _FakePlatform();
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        locale: const Locale('ko'),
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('녹화'), findsOneWidget);
+    expect(find.textContaining('录制'), findsNothing);
+  });
+
+  testWidgets('language override refreshes capture bar', (tester) async {
+    final fake = _FakePlatform();
+    UsbCapturePlatform.instance = fake;
+    var locale = const Locale('zh');
+    await tester.pumpWidget(
+      StatefulBuilder(
+        builder: (context, setSt) {
+          return localizedApp(
+            locale: locale,
+            home: PreviewPage(
+              plugin: UsbCapture(),
+              profile: PlatformProfile(
+                usbCaptureSupported: true,
+                televisionUiMode: false,
+                hasUsbHost: true,
+                hasTouchscreen: true,
+                customSaveFolderSupported: true,
+                rtmpStreamSupported: true,
+                httpLanSupported: true,
+              ),
+              television: false,
+              onLocaleMode: (mode) {
+                locale = mode.resolve(const Locale('zh', 'CN'));
+                setSt(() {});
+              },
+            ),
+          );
+        },
+      ),
+    );
+    await tester.pump();
+    expect(find.text('开始录制'), findsOneWidget);
+    await tester.tap(find.byTooltip('设置'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('跟随系统'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('English').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Record'), findsOneWidget);
+    expect(fake.uiLocale, 'en');
+    expect(find.text('请插入 USB 采集卡'), findsNothing);
+    expect(find.text('Insert USB capture'), findsWidgets);
   });
 }

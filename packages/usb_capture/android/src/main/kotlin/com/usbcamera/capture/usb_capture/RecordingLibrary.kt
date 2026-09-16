@@ -73,7 +73,12 @@ class RecordingLibrary(private val activityProvider: () -> Activity?) {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        activity.startActivity(Intent.createChooser(intent, "分享录像"))
+        activity.startActivity(
+            Intent.createChooser(
+                intent,
+                UiLocale.wrap(activity).getString(R.string.share_recording),
+            ),
+        )
     }
 
     private fun uriFor(id: String): Uri {
@@ -117,7 +122,12 @@ class RecordingLibrary(private val activityProvider: () -> Activity?) {
             clipData = android.content.ClipData.newRawUri("", uri)
         }
         try {
-            activity.startActivity(Intent.createChooser(intent, "打开录像"))
+            activity.startActivity(
+                Intent.createChooser(
+                    intent,
+                    UiLocale.wrap(activity).getString(R.string.open_recording),
+                ),
+            )
         } catch (_: Exception) {
             throw CaptureException("unknown", "playFailed")
         }

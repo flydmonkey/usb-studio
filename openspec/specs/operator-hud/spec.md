@@ -1,7 +1,7 @@
 # operator-hud Specification
 
 ## Purpose
-Give the operator live confirmation of signal, audio level, recording size, and session controls (immersive view, keep-awake, snapshot) without leaving the capture page.
+Give the operator live confirmation of signal, audio level, recording size, ingest state, and session controls (immersive view, keep-awake, snapshot) without leaving the capture page.
 ## Requirements
 ### Requirement: Signal heads-up display
 While preview is running, the app SHALL overlay a compact HUD showing the active capture width, height, frame rate, and pixel format (FourCC or platform equivalent). The HUD SHALL update when the format changes. On television UI mode, HUD text SHALL remain readable at 10-foot distance.
@@ -80,3 +80,14 @@ While preview is running, the user SHALL be able to save a still image of the cu
 #### Scenario: Cannot snapshot without preview
 - **WHEN** preview is not running
 - **THEN** the app MUST NOT capture a still
+
+### Requirement: Live ingest badge
+While RTMP ingest is active, the capture preview SHALL overlay a distinct LIVE indicator that can appear together with the recording badge. The Android foreground service notification SHALL remain while ingest or recording is active, and its text SHALL mention streaming when ingest is live.
+
+#### Scenario: LIVE shows during ingest
+- **WHEN** ingest is live and preview is visible
+- **THEN** the operator SHALL see a LIVE badge even if recording is also running
+
+#### Scenario: Notification covers stream-only
+- **WHEN** ingest is live and recording is idle
+- **THEN** the foreground notification SHALL remain and indicate streaming

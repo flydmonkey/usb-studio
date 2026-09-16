@@ -58,18 +58,18 @@ On Android phones, tablets, and TV, the default destination SHALL be the system 
 - **THEN** the app SHALL tell the user that the video was saved and SHALL name the selected destination (相册, 影片, 下载, or 自定义)
 
 ### Requirement: Disconnect during recording
-If the capture device is unplugged or the session fails while recording, the app SHALL stop recording and MUST publish a playable MP4 to the platform library when the interrupted capture produced a non-empty video file. The app SHALL then show that recording ended because the device disconnected, and SHALL also tell the user whether the file was saved. Preview SHALL enter the disconnected state. The UI MUST NOT remain in an indefinite recording state.
+If the capture device is unplugged or the session fails while recording, the app SHALL stop recording and MUST publish a playable MP4 to the platform library when the interrupted capture produced encoded media. A file that is only a container header, or a take shorter than about 1.5 seconds, MUST NOT be published. The app SHALL then show that recording ended because the device disconnected, and SHALL also tell the user whether the file was saved. Preview SHALL enter the disconnected state. The UI MUST NOT remain in an indefinite recording state.
 
 #### Scenario: Unplug while recording saves the file
 - **WHEN** the active capture card is unplugged during recording and a non-empty video file can be finalized
 - **THEN** the app SHALL write the MP4 to the operator's Android save location, clear the recording indicator, show a disconnected state, and SHALL tell the user that the recording was saved
 
 #### Scenario: Unplug while recording with nothing to save
-- **WHEN** the active capture card is unplugged during recording and no non-empty video file can be finalized
+- **WHEN** the active capture card is unplugged during recording and no playable encoded video can be finalized
 - **THEN** the app SHALL clear the recording indicator, show a disconnected/error state, and MUST NOT claim that a recording was saved
 
 ### Requirement: Encoder or session failure during recording
-If the encoder or capture session fails while recording (without a clean user stop), the app SHALL use the same salvage rule as disconnect: publish a playable MP4 when a non-empty video file can be finalized, then leave recording state. The app SHALL show an error and SHALL tell the user whether the file was saved.
+If the encoder or capture session fails while recording (without a clean user stop), the app SHALL use the same salvage rule as disconnect: publish a playable MP4 when encoded media can be finalized, then leave recording state. The app SHALL show an error and SHALL tell the user whether the file was saved.
 
 #### Scenario: Encoder error with salvageable video
 - **WHEN** recording fails because of an encoder or session error and a non-empty video file can be finalized
@@ -128,7 +128,7 @@ On Android, while recording is in progress, the app SHALL keep capturing after t
 - **THEN** the UI SHALL show recording in progress with elapsed time and MUST NOT start a second recording
 
 ### Requirement: Optional recording segments
-The operator SHALL be able to disable segmentation or choose a segment length of 1, 5, 10, 15, or 30 minutes from a settings dropdown. A value of zero minutes SHALL record the session as one file named `USB_<timestamp>.mp4` without a numeric suffix. Changing the interval while recording MUST be rejected without stopping the recording. The recording indicator SHALL omit the segment index when segmentation is disabled. Default SHALL be 10 minutes. A brief gap between segments is allowed. The app MUST NOT concatenate segments into one file.
+The operator SHALL be able to disable segmentation or choose a segment length of 1, 5, 10, 15, or 30 minutes from a settings dropdown. A value of zero minutes SHALL record the session as one file named `USB_<timestamp>.mp4` without a numeric suffix. Changing the interval while recording MUST be rejected without stopping the recording. The recording indicator SHALL omit the segment index when segmentation is disabled. Default SHALL be 10 minutes. A brief gap between segments is allowed. The app MUST NOT concatenate segments into one file during recording. After segments are published, the operator MAY merge a completed session from the library on Android.
 
 #### Scenario: Disabled segmentation writes one file
 - **WHEN** segmentation is off and the user records then stops

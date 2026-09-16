@@ -307,6 +307,11 @@ class UsbCapturePlugin :
                 CaptureRuntime.engine?.httpServerStatus()
                     ?: mapOf("running" to false)
             }
+            "setUiLocale" -> {
+                UiLocale.setTag(call.argument<String>("tag"))
+                appContext?.let { CaptureRecordService.refresh(it) }
+                result.success(null)
+            }
             else -> result.notImplemented()
         }
     }

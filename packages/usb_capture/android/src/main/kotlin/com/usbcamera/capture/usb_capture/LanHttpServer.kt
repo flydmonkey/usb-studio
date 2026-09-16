@@ -68,7 +68,34 @@ class LanHttpServer(
         }
 
         private fun serveIndex(): Response {
-            return serveAsset("lan_http/index.html", "text/html; charset=utf-8")
+            return try {
+                val html = context.assets.open("lan_http/index.html").bufferedReader().use { it.readText() }
+                val localized = UiLocale.wrap(context)
+                val payload = JSONObject()
+                    .put("lang", UiLocale.tag)
+                    .put("title", localized.getString(R.string.lan_page_title))
+                    .put("hint", localized.getString(R.string.lan_page_hint))
+                    .put("live", localized.getString(R.string.lan_live))
+                    .put("waitingCard", localized.getString(R.string.lan_waiting_card))
+                    .put("recordings", localized.getString(R.string.lan_recordings))
+                    .put("loading", localized.getString(R.string.lan_loading))
+                    .put("liveUnsupported", localized.getString(R.string.lan_live_unsupported))
+                    .put("loadFailed", localized.getString(R.string.lan_load_failed))
+                    .put("empty", localized.getString(R.string.lan_empty))
+                    .put("unnamed", localized.getString(R.string.lan_unnamed))
+                val body = html.replace(
+                    "window.LAN_I18N = window.LAN_I18N || {};",
+                    "window.LAN_I18N = $payload;",
+                ).toByteArray(Charsets.UTF_8)
+                newFixedLengthResponse(
+                    Response.Status.OK,
+                    "text/html; charset=utf-8",
+                    body.inputStream(),
+                    body.size.toLong(),
+                )
+            } catch (_: Exception) {
+                newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "")
+            }
         }
 
         private fun serveAsset(assetPath: String, mime: String): Response {

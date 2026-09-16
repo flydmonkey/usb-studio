@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notification_channel">錄製</string>
+    <string name="notification_recording_segment">正在錄製 %1$s · 第 %2$d 段</string>
+    <string name="notification_recording_stream_segment">正在錄製 %1$s · 第 %2$d 段 · 推流中</string>
+    <string name="notification_recording_stream">正在錄製 %1$s · 推流中</string>
+    <string name="notification_streaming">正在推流 %1$s</string>
+    <string name="notification_recording">正在錄製 %1$s</string>
+    <string name="notification_lan">區域網播放</string>
+    <string name="notification_lan_suffix">%1$s · 區域網播放</string>
+    <string name="share_recording">分享錄影</string>
+    <string name="open_recording">開啟錄影</string>
+    <string name="usb_capture_card">USB 擷取卡</string>
+    <string name="lan_page_title">USB Studio · 區域網播放</string>
+    <string name="lan_page_hint">同一 Wi-Fi 用 HTTP 開啟即可，不需要 HTTPS。現場預設靜音，點播放器取消靜音。</string>
+    <string name="lan_live">現場</string>
+    <string name="lan_waiting_card">等待擷取卡</string>
+    <string name="lan_recordings">已錄成片</string>
+    <string name="lan_loading">載入中…</string>
+    <string name="lan_live_unsupported">目前瀏覽器無法播放現場</string>
+    <string name="lan_load_failed">無法載入錄影列表</string>
+    <string name="lan_empty">暫無錄影</string>
+    <string name="lan_unnamed">未命名</string>
+</resources>

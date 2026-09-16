@@ -174,6 +174,10 @@ class UsbCapture {
     return UsbCapturePlatform.instance.pickSaveFolder();
   }
 
+  Future<void> setUiLocale(String tag) {
+    return UsbCapturePlatform.instance.setUiLocale(tag);
+  }
+
   Stream<CaptureEvent> events() {
     return UsbCapturePlatform.instance.events();
   }

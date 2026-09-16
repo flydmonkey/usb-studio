@@ -37,6 +37,7 @@ class CaptureRecordService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        ensureChannel()
         val hud = CaptureRuntime.engine?.recordingHud() ?: RecordingHud(0L, 1, true)
         startFg(buildNotification(hud))
         handler.removeCallbacks(ticker)
@@ -80,6 +81,7 @@ class CaptureRecordService : Service() {
     }
 
     private fun buildNotification(hud: RecordingHud): Notification {
+        val ctx = UiLocale.wrap(this)
         val elapsed = formatElapsed(hud.elapsedMs)
         val launch = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -92,21 +94,32 @@ class CaptureRecordService : Service() {
         )
         val baseText = when {
             hud.recording && hud.streaming && hud.segmented ->
-                "正在录制 $elapsed · 第 ${hud.segmentIndex} 段 · 推流中"
-            hud.recording && hud.streaming -> "正在录制 $elapsed · 推流中"
-            hud.streaming && !hud.recording -> "正在推流 $elapsed"
-            hud.recording && hud.segmented -> "正在录制 $elapsed · 第 ${hud.segmentIndex} 段"
-            hud.recording -> "正在录制 $elapsed"
-            hud.httpServing -> "局域网播放"
-            else -> "USB Studio"
+                ctx.getString(
+                    R.string.notification_recording_stream_segment,
+                    elapsed,
+                    hud.segmentIndex,
+                )
+            hud.recording && hud.streaming ->
+                ctx.getString(R.string.notification_recording_stream, elapsed)
+            hud.streaming && !hud.recording ->
+                ctx.getString(R.string.notification_streaming, elapsed)
+            hud.recording && hud.segmented ->
+                ctx.getString(
+                    R.string.notification_recording_segment,
+                    elapsed,
+                    hud.segmentIndex,
+                )
+            hud.recording -> ctx.getString(R.string.notification_recording, elapsed)
+            hud.httpServing -> ctx.getString(R.string.notification_lan)
+            else -> ctx.getString(R.string.app_name)
         }
         val text = if (hud.httpServing && (hud.recording || hud.streaming)) {
-            "$baseText · 局域网播放"
+            ctx.getString(R.string.notification_lan_suffix, baseText)
         } else {
             baseText
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("USB Studio")
+            .setContentTitle(ctx.getString(R.string.app_name))
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setOngoing(true)
@@ -121,7 +134,7 @@ class CaptureRecordService : Service() {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "录制",
+            UiLocale.wrap(this).getString(R.string.notification_channel),
             NotificationManager.IMPORTANCE_LOW,
         )
         manager.createNotificationChannel(channel)
@@ -138,6 +151,11 @@ class CaptureRecordService : Service() {
             } else {
                 context.startService(intent)
             }
+        }
+
+        fun refresh(context: Context) {
+            if (CaptureRuntime.engine?.recordingHud() == null) return
+            start(context)
         }
 
         fun stop(context: Context) {

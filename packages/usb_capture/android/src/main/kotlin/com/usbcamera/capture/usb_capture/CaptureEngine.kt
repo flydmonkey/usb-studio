@@ -154,7 +154,7 @@ class CaptureEngine(
 
     private val stateCallback = object : ICameraHelper.StateCallback {
         override fun onAttach(device: UsbDevice) {
-            emit(mapOf("type" to "attached", "device" to deviceMap(device)))
+            emit(mapOf("type" to "attached", "device" to mapDevice(device)))
         }
 
         override fun onDeviceOpen(device: UsbDevice, isFirstOpen: Boolean) {
@@ -274,7 +274,14 @@ class CaptureEngine(
         } else {
             usbManager.deviceList.values.filter(::isUvcDevice)
         }
-        return devices.map(::deviceMap)
+        return devices.map(::mapDevice)
+    }
+
+    private fun mapDevice(device: UsbDevice): Map<String, Any?> {
+        return deviceMap(
+            device,
+            UiLocale.wrap(context).getString(R.string.usb_capture_card),
+        )
     }
 
     fun captureStatus(): Map<String, Any?> {
@@ -1015,7 +1022,8 @@ class CaptureEngine(
         val audioOk = aacWriter?.finish() == true
         aacWriter = null
         val video = videoTemp ?: throw CaptureException("recordingFailed", recordError)
-        if (!video.exists() || video.length() == 0L) {
+        val durationMs = currentSegmentDurationMs()
+        if (!video.exists() || !SalvagePolicy.isPublishable(video.length(), durationMs)) {
             cleanupTemps()
             throw CaptureException("recordingFailed", recordError)
         }
@@ -1039,7 +1047,8 @@ class CaptureEngine(
 
     private fun publishVideoOnlyOrNull(): Map<String, Any?>? {
         val video = videoTemp ?: return null
-        if (!video.exists() || video.length() == 0L) {
+        val durationMs = currentSegmentDurationMs()
+        if (!video.exists() || !SalvagePolicy.isPublishable(video.length(), durationMs)) {
             cleanupTemps()
             return null
         }
@@ -1072,6 +1081,11 @@ class CaptureEngine(
         videoTemp = null
         audioTemp = null
         aacWriter = null
+    }
+
+    private fun currentSegmentDurationMs(): Long {
+        if (recordingStartedAt <= 0L) return 0L
+        return (SystemClock.elapsedRealtime() - recordingStartedAt).coerceAtLeast(0L)
     }
 
     private fun emitSaved(
@@ -1415,8 +1429,11 @@ class CaptureEngine(
         fun deviceId(device: UsbDevice): String =
             "${device.vendorId}:${device.productId}:${device.deviceName}"
 
-        fun deviceMap(device: UsbDevice): Map<String, Any?> {
-            val name = device.productName?.ifBlank { null } ?: "USB 采集卡"
+        fun deviceMap(
+            device: UsbDevice,
+            fallbackName: String = "USB capture card",
+        ): Map<String, Any?> {
+            val name = device.productName?.ifBlank { null } ?: fallbackName
             return mapOf(
                 "id" to deviceId(device),
                 "name" to name,

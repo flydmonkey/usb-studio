@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:usb_studio/capture_copy.dart';
+import 'package:usb_studio/l10n/app_localizations.dart';
 import 'package:usb_studio/library_page.dart';
+import 'package:usb_studio/locale_mode.dart';
 import 'package:usb_studio/operator_prefs.dart';
 import 'package:usb_capture/usb_capture.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -14,12 +17,14 @@ class PreviewPage extends StatefulWidget {
     required this.profile,
     required this.television,
     this.initialPrefs,
+    this.onLocaleMode,
   });
 
   final UsbCapture plugin;
   final PlatformProfile profile;
   final bool television;
   final OperatorPrefs? initialPrefs;
+  final ValueChanged<LocaleMode>? onLocaleMode;
 
   @override
   State<PreviewPage> createState() => _PreviewPageState();
@@ -30,7 +35,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
   List<CaptureDevice> _devices = const [];
   CaptureDevice? _active;
   CaptureError? _error;
-  String? _status;
+  String Function(AppLocalizations)? _statusOf;
   StreamSubscription<CaptureEvent>? _events;
   Timer? _ticker;
   DateTime? _recordStartedAt;
@@ -40,6 +45,8 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
   String? _httpError;
 
   bool get _tv => widget.television;
+
+  AppLocalizations get _l10n => AppLocalizations.of(context);
 
   @override
   void initState() {
@@ -114,9 +121,11 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       );
     });
     await _applySaveLocation(prefs);
+    await _syncNativeLocale(prefs.localeMode);
   }
 
   Future<void> _persist(OperatorPrefs next) async {
+    final previousMode = _prefs.localeMode;
     final saved = await next.save();
     if (!mounted) return;
     setState(() {
@@ -133,6 +142,18 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       );
     });
     await _applySaveLocation(saved);
+    if (saved.localeMode != previousMode) {
+      await _syncNativeLocale(saved.localeMode);
+      widget.onLocaleMode?.call(saved.localeMode);
+    }
+  }
+
+  Future<void> _syncNativeLocale(LocaleMode mode) async {
+    try {
+      await widget.plugin.setUiLocale(
+        mode.toBcp47(View.of(context).platformDispatcher.locale),
+      );
+    } catch (_) {}
   }
 
   Future<void> _applySaveLocation(OperatorPrefs prefs) async {
@@ -158,7 +179,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() {
         _httpUrl = null;
-        _httpError = error.message;
+        _httpError = localizeCaptureError(_l10n, error);
       });
     }
   }
@@ -248,12 +269,16 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
           return;
         }
         if (devices.isEmpty) {
-          _status = '请插入 USB 采集卡';
+          _statusOf = (l10n) => l10n.insertCaptureCard;
         } else {
           _error = null;
-          _status = devices.length == 1
-              ? devices.first.name
-              : '发现 ${devices.length} 台采集设备';
+          if (devices.length == 1) {
+            final name = devices.first.name;
+            _statusOf = (_) => name;
+          } else {
+            final count = devices.length;
+            _statusOf = (l10n) => l10n.devicesFound(count);
+          }
         }
       });
       if (autoConnect && devices.length == 1) {
@@ -295,7 +320,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
           audioAvailable: device.hasAudio,
         );
         _error = null;
-        _status = device.name;
+        _statusOf = (_) => device.name;
       });
       await widget.plugin.setPreviewMuted(_prefs.previewMuted);
       await widget.plugin.setMonitorVolume(_prefs.monitorVolume);
@@ -454,7 +479,8 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
         _deferAutoRecord = true;
         setState(() {
           _session = _session.stopRecording();
-          _status = SaveLocation.savedStatus(result.saveKind);
+          final kind = result.saveKind;
+          _statusOf = (l10n) => savedStatusLabel(l10n, kind);
           if (!result.hasAudio) {
             _error = const CaptureError(CaptureErrorCode.noAudioSource);
           }
@@ -476,7 +502,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       );
       setState(() {
         _error = error;
-        _status = error.message;
+        _statusOf = (l10n) => localizeCaptureError(l10n, error);
       });
       return;
     }
@@ -500,7 +526,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
           );
           setState(() {
             _error = error;
-            _status = error.message;
+            _statusOf = (l10n) => localizeCaptureError(l10n, error);
           });
           return;
         }
@@ -514,7 +540,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       setState(() {
         _session = _session.stopStreaming();
         _error = error;
-        _status = error.message;
+        _statusOf = (l10n) => localizeCaptureError(l10n, error);
       });
     }
     await _syncWakelock();
@@ -527,7 +553,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
         sessionOpen: _session.sessionOpen,
       );
       await widget.plugin.takeSnapshot();
-      setState(() => _status = '已保存截图');
+      setState(() => _statusOf = (l10n) => l10n.snapshotSaved);
     } on CaptureError catch (error) {
       setState(() => _error = error);
     }
@@ -651,7 +677,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
     _recordStartedAt = null;
     setState(() {
       _session = _session.interruptRecording(saved: true);
-      _status = SaveLocation.savedStatus(_prefs.saveKind);
+      _statusOf = (l10n) => savedStatusLabel(l10n, _prefs.saveKind);
       if (event.hasAudio == false) {
         _error = const CaptureError(CaptureErrorCode.noAudioSource);
       }
@@ -664,7 +690,8 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       _session = _session.onSegmentPublished(
         completedIndex: event.segmentIndex ?? _session.segmentIndex,
       );
-      _status = '第${_session.segmentIndex}段';
+      final index = _session.segmentIndex;
+      _statusOf = (l10n) => l10n.segmentStatus(index);
     });
   }
 
@@ -676,18 +703,18 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
         builder: (context) {
           return AlertDialog(
             title: Text(
-              BatteryOptCopy.title,
+              _l10n.batteryTitle,
               style: TextStyle(fontSize: _tv ? 24 : 18),
             ),
             content: Text(
-              BatteryOptCopy.body,
+              _l10n.batteryBody,
               style: TextStyle(fontSize: _tv ? 20 : 16),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
                 child: Text(
-                  BatteryOptCopy.later,
+                  _l10n.batteryLater,
                   style: TextStyle(fontSize: _tv ? 20 : 16),
                 ),
               ),
@@ -695,7 +722,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
                 autofocus: _tv,
                 onPressed: () => Navigator.pop(context, true),
                 child: Text(
-                  BatteryOptCopy.openSettings,
+                  _l10n.batteryOpenSettings,
                   style: TextStyle(fontSize: _tv ? 20 : 16),
                 ),
               ),
@@ -727,7 +754,8 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       _active = null;
       _session = _session.onDisconnected();
       _error = event.error ?? const CaptureError(CaptureErrorCode.disconnected);
-      _status = CaptureSessionRules.interruptStatus(
+      _statusOf = (l10n) => interruptStatusLabel(
+        l10n,
         disconnected: true,
         saved: saved,
         television: _tv,
@@ -742,7 +770,10 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       setState(() {
         _session = _session.stopStreaming();
         _error = event.error;
-        _status = event.error?.message;
+        final err = event.error;
+        _statusOf = err == null
+            ? _statusOf
+            : (l10n) => localizeCaptureError(l10n, err);
       });
       _syncWakelock();
       return;
@@ -763,13 +794,15 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       if (event.error?.code == CaptureErrorCode.disconnected) {
         _active = null;
         _session = _session.onDisconnected();
-        _status = CaptureSessionRules.interruptStatus(
+        _statusOf = (l10n) => interruptStatusLabel(
+          l10n,
           disconnected: true,
           saved: saved,
           television: _tv,
         );
       } else if (saved) {
-        _status = CaptureSessionRules.interruptStatus(
+        _statusOf = (l10n) => interruptStatusLabel(
+          l10n,
           disconnected: false,
           saved: true,
           television: _tv,
@@ -802,7 +835,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
                         const SizedBox(width: 48),
                         Expanded(
                           child: Text(
-                            '采集设置',
+                            _l10n.settingsTitle,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: _tv ? 22 : 16,
@@ -811,7 +844,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
                           ),
                         ),
                         IconButton(
-                          tooltip: '关闭',
+                          tooltip: _l10n.close,
                           onPressed: () => Navigator.pop(context),
                           icon: Icon(Icons.close, size: _tv ? 32 : 22),
                         ),
@@ -872,6 +905,10 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
                           await _setHttpLan(enabled);
                           setModal(() {});
                         },
+                        onLocaleMode: (mode) async {
+                          await _persist(_prefs.copyWith(localeMode: mode));
+                          setModal(() {});
+                        },
                         prefs: _prefs,
                         customFolderSupported:
                             widget.profile.customSaveFolderSupported,
@@ -914,7 +951,10 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
               children: [
                 if (!_session.immersive)
                   _Header(
-                    status: _status ?? (_error?.message ?? 'USB Studio'),
+                    status: _statusOf?.call(_l10n) ??
+                        (_error == null
+                            ? 'USB Studio'
+                            : localizeCaptureError(_l10n, _error!)),
                     deviceName: _active?.name,
                     error: _error,
                     television: _tv,
@@ -1052,19 +1092,34 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final iconSize = television ? 32.0 : 22.0;
+    final IconData statusIcon;
+    final Color statusColor;
+    if (error != null) {
+      statusIcon = Icons.error_outline;
+      statusColor = Colors.orangeAccent;
+    } else if (deviceName == null) {
+      statusIcon = Icons.usb_off;
+      statusColor = Colors.white70;
+    } else {
+      statusIcon = Icons.videocam;
+      statusColor = Colors.lightGreenAccent;
+    }
     return Row(
       children: [
         Icon(
-          error == null ? Icons.videocam : Icons.error_outline,
-          color: error == null ? Colors.lightGreenAccent : Colors.orangeAccent,
+          statusIcon,
+          color: statusColor,
           size: television ? 36 : 24,
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(
-            deviceName == null ? status : '$deviceName  ·  $status',
+            child: Text(
+            headerTitle(status: status, deviceName: deviceName),
             style: TextStyle(fontSize: television ? 22 : 16),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         if (devices.length > 1)
@@ -1095,17 +1150,17 @@ class _Header extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                tooltip: '截图',
+                tooltip: l10n.snapshot,
                 onPressed: onSnapshot,
                 icon: Icon(Icons.camera_alt, size: iconSize),
               ),
               IconButton(
-                tooltip: LibraryCopy.title,
+                tooltip: l10n.library,
                 onPressed: onLibrary,
                 icon: Icon(Icons.video_library, size: iconSize),
               ),
               IconButton(
-                tooltip: '设置',
+                tooltip: l10n.settings,
                 onPressed: onSettings,
                 icon: Icon(Icons.tune, size: iconSize),
               ),
@@ -1129,7 +1184,9 @@ class _EmptyState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(
-          error?.message ?? '请插入 USB 采集卡',
+          error == null
+              ? AppLocalizations.of(context).insertCaptureCard
+              : localizeCaptureError(AppLocalizations.of(context), error!),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: television ? 28 : 18,
@@ -1152,7 +1209,7 @@ class _PreviewOffState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(
-          '预览已关闭，仍可录制',
+          AppLocalizations.of(context).previewOffCanRecord,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: television ? 28 : 18,
@@ -1169,11 +1226,11 @@ class _NoSignal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(
-      color: Color(0x99000000),
+    return ColoredBox(
+      color: const Color(0x99000000),
       child: Center(
         child: Text(
-          '无信号',
+          AppLocalizations.of(context).noSignal,
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w600,
@@ -1197,7 +1254,7 @@ class _SnapshotChip extends StatelessWidget {
       color: Colors.black54,
       shape: const CircleBorder(),
       child: IconButton(
-        tooltip: '截图',
+        tooltip: AppLocalizations.of(context).snapshot,
         onPressed: onPressed,
         iconSize: television ? 32 : 22,
         color: Colors.white,
@@ -1226,7 +1283,7 @@ class _Hud extends StatelessWidget {
           vertical: 6,
         ),
         child: Text(
-          signal.hudLabel,
+          signalHudLabel(AppLocalizations.of(context), signal),
           style: TextStyle(fontSize: television ? 18 : 13, color: Colors.white),
         ),
       ),
@@ -1328,7 +1385,7 @@ class _RecordingBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        '${SegmentPolicy.recLabel(elapsed: elapsed, segmentIndex: segmentIndex, segmented: segmented)}$size',
+        '${recHudLabel(AppLocalizations.of(context), elapsed: elapsed, segmentIndex: segmentIndex, segmented: segmented)}$size',
         style: TextStyle(
           fontSize: television ? 20 : 14,
           fontWeight: FontWeight.bold,
@@ -1359,6 +1416,7 @@ class _SettingsSheet extends StatelessWidget {
     required this.onRtmpServer,
     required this.onRtmpKey,
     required this.onHttpLan,
+    required this.onLocaleMode,
     required this.rtmpStreamSupported,
     required this.httpLanSupported,
     this.httpUrl,
@@ -1384,6 +1442,7 @@ class _SettingsSheet extends StatelessWidget {
   final ValueChanged<String> onRtmpServer;
   final ValueChanged<String> onRtmpKey;
   final ValueChanged<bool> onHttpLan;
+  final ValueChanged<LocaleMode> onLocaleMode;
   final bool rtmpStreamSupported;
   final bool httpLanSupported;
   final String? httpUrl;
@@ -1391,6 +1450,7 @@ class _SettingsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final saveKind = SaveLocation.normalize(prefs.saveKind);
     final saveValue = saveKind == SaveLocation.custom && !customFolderSupported
         ? SaveLocation.gallery
@@ -1400,18 +1460,57 @@ class _SettingsSheet extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _SettingsSection(
-          title: '录制',
+          title: l10n.language,
           television: television,
           children: [
-            const Text('录制分段'),
-            DropdownButton<int>(
-              isExpanded: true,
+            _SettingsDropdown<LocaleMode>(
+              television: television,
+              value: prefs.localeMode,
+              items: [
+                DropdownMenuItem(
+                  value: LocaleMode.system,
+                  child: Text(l10n.languageSystem),
+                ),
+                DropdownMenuItem(
+                  value: LocaleMode.zhHans,
+                  child: Text(l10n.languageZhHans),
+                ),
+                DropdownMenuItem(
+                  value: LocaleMode.zhHant,
+                  child: Text(l10n.languageZhHant),
+                ),
+                DropdownMenuItem(
+                  value: LocaleMode.ja,
+                  child: Text(l10n.languageJa),
+                ),
+                DropdownMenuItem(
+                  value: LocaleMode.ko,
+                  child: Text(l10n.languageKo),
+                ),
+                DropdownMenuItem(
+                  value: LocaleMode.en,
+                  child: Text(l10n.languageEn),
+                ),
+              ],
+              onChanged: (mode) {
+                if (mode != null) onLocaleMode(mode);
+              },
+            ),
+          ],
+        ),
+        _SettingsSection(
+          title: l10n.sectionRecord,
+          television: television,
+          children: [
+            Text(l10n.recordSegment),
+            _SettingsDropdown<int>(
+              television: television,
               value: SegmentPolicy.normalizeMinutes(session.segmentMinutes),
               items: [
                 for (final minutes in SegmentPolicy.allowedMinutes)
                   DropdownMenuItem(
                     value: minutes,
-                    child: Text(SegmentPolicy.segmentOptionLabel(minutes)),
+                    child: Text(segmentOptionLabel(l10n, minutes)),
                   ),
               ],
               onChanged: session.isRecording
@@ -1420,15 +1519,15 @@ class _SettingsSheet extends StatelessWidget {
                       if (minutes != null) onSegment(minutes);
                     },
             ),
-            const Text('录制画质'),
-            DropdownButton<QualityPreset>(
-              isExpanded: true,
+            Text(l10n.recordQuality),
+            _SettingsDropdown<QualityPreset>(
+              television: television,
               value: session.quality,
               items: [
                 for (final preset in QualityPreset.values)
                   DropdownMenuItem(
                     value: preset,
-                    child: Text(preset.optionLabel),
+                    child: Text(qualityLabel(l10n, preset)),
                   ),
               ],
               onChanged: (session.isRecording || session.isStreaming)
@@ -1438,29 +1537,30 @@ class _SettingsSheet extends StatelessWidget {
                     },
             ),
             if (customFolderSupported) ...[
-              const Text('保存位置'),
-              DropdownButton<String>(
-                isExpanded: true,
+              Text(l10n.saveLocation),
+              _SettingsDropdown<String>(
+                television: television,
                 value: saveValue,
                 items: [
                   DropdownMenuItem(
                     value: SaveLocation.gallery,
-                    child: Text(SaveLocation.optionLabel(SaveLocation.gallery)),
+                    child: Text(saveLocationLabel(l10n, SaveLocation.gallery)),
                   ),
                   DropdownMenuItem(
                     value: SaveLocation.movies,
-                    child: Text(SaveLocation.optionLabel(SaveLocation.movies)),
+                    child: Text(saveLocationLabel(l10n, SaveLocation.movies)),
                   ),
                   DropdownMenuItem(
                     value: SaveLocation.downloads,
                     child: Text(
-                      SaveLocation.optionLabel(SaveLocation.downloads),
+                      saveLocationLabel(l10n, SaveLocation.downloads),
                     ),
                   ),
                   DropdownMenuItem(
                     value: SaveLocation.custom,
                     child: Text(
-                      SaveLocation.optionLabel(
+                      saveLocationLabel(
+                        l10n,
                         SaveLocation.custom,
                         folderName: prefs.saveFolderName,
                       ),
@@ -1481,14 +1581,14 @@ class _SettingsSheet extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: onPickFolder,
-                    child: const Text('更改目录'),
+                    child: Text(l10n.changeFolder),
                   ),
                 ),
             ],
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(
-                '连接后自动开录',
+                l10n.autoRecord,
                 style: TextStyle(fontSize: television ? 20 : 16),
               ),
               value: session.autoRecord,
@@ -1497,52 +1597,43 @@ class _SettingsSheet extends StatelessWidget {
           ],
         ),
         _SettingsSection(
-          title: '预览',
+          title: l10n.sectionPreview,
           television: television,
+          trailing: Switch(
+            value: session.previewEnabled,
+            onChanged: onPreviewEnabled,
+          ),
           children: [
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(
-                '开启预览',
-                style: TextStyle(fontSize: television ? 20 : 16),
-              ),
-              value: session.previewEnabled,
-              onChanged: onPreviewEnabled,
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                '预览声音',
+                l10n.previewSound,
                 style: TextStyle(fontSize: television ? 20 : 16),
               ),
               value: !session.previewMuted,
               onChanged: onPreviewSound,
             ),
-            Text('监听音量  ${(session.monitorVolume * 100).round()}%'),
+            Text(l10n.monitorVolume((session.monitorVolume * 100).round())),
             Slider(value: session.monitorVolume, onChanged: onVolume),
-            const Text('监听延迟'),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final delay in const [0, 50, 100, 200])
-                  ChoiceChip(
-                    label: Text('${delay}ms'),
-                    selected: session.monitorDelayMs == delay,
-                    onSelected: (_) => onDelay(delay),
-                  ),
-              ],
+            Text(l10n.monitorDelay),
+            _SettingsChoiceRow(
+              television: television,
+              value: session.monitorDelayMs,
+              options: const [0, 50, 100, 200],
+              labelOf: (delay) => '${delay}ms',
+              onSelected: onDelay,
             ),
           ],
         ),
         if (session.formats.isNotEmpty || session.pictureControls.isNotEmpty)
           _SettingsSection(
-            title: '画面',
+            title: l10n.sectionPicture,
             television: television,
             children: [
               if (session.formats.isNotEmpty) ...[
-                const Text('视频格式'),
-                DropdownButton<String>(
-                  isExpanded: true,
+                Text(l10n.videoFormat),
+                _SettingsDropdown<String>(
+                  television: television,
                   value:
                       session.formats.any(
                         (item) => item.id == session.selectedFormatId,
@@ -1565,7 +1656,9 @@ class _SettingsSheet extends StatelessWidget {
               ],
               if (session.pictureControls.isNotEmpty) ...[
                 for (final control in session.pictureControls) ...[
-                  Text('${control.displayLabel}  ${control.value}'),
+                  Text(
+                    '${pictureControlLabel(l10n, control.id)}  ${control.value}',
+                  ),
                   Slider(
                     min: control.min.toDouble(),
                     max: control.max.toDouble(),
@@ -1580,7 +1673,7 @@ class _SettingsSheet extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: onResetPicture,
-                    child: const Text('恢复默认'),
+                    child: Text(l10n.resetPicture),
                   ),
                 ),
               ],
@@ -1588,78 +1681,64 @@ class _SettingsSheet extends StatelessWidget {
           ),
         if (rtmpStreamSupported)
           _SettingsSection(
-            title: '推流',
+            title: l10n.sectionStream,
             television: television,
             children: [
-              const Text('推流地址'),
+              Text(l10n.streamUrl),
               TextFormField(
                 initialValue: prefs.rtmpServer,
                 style: TextStyle(fontSize: television ? 20 : 16),
-                decoration: const InputDecoration(
-                  hintText: 'rtmp://live.example/live',
-                  filled: true,
-                  fillColor: Color(0xFF2A2A2A),
+                decoration: _settingsFieldDecoration(
+                  hint: 'rtmp://live.example/live',
                 ),
                 onChanged: onRtmpServer,
               ),
-              const Text('推流密钥（选填）'),
+              Text(l10n.streamKey),
               TextFormField(
                 initialValue: prefs.rtmpKey,
                 obscureText: true,
                 style: TextStyle(fontSize: television ? 20 : 16),
-                decoration: const InputDecoration(
-                  hintText: '也可把完整地址填在上面',
-                  filled: true,
-                  fillColor: Color(0xFF2A2A2A),
-                ),
+                decoration: _settingsFieldDecoration(hint: l10n.streamKeyHint),
                 onChanged: onRtmpKey,
               ),
             ],
           ),
         if (httpLanSupported)
           _SettingsSection(
-            title: '局域网播放',
+            title: l10n.sectionLan,
             television: television,
+            trailing: Switch(
+              key: const Key('lan-playback'),
+              value: prefs.httpLanEnabled,
+              onChanged: onHttpLan,
+            ),
             children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  '局域网播放',
-                  style: TextStyle(fontSize: television ? 20 : 16),
-                ),
-                value: prefs.httpLanEnabled,
-                onChanged: onHttpLan,
-              ),
               if (prefs.httpLanEnabled) ...[
                 if (httpUrl != null)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: SelectableText(
-                          httpUrl!,
-                          style: TextStyle(fontSize: television ? 18 : 14),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: '复制地址',
+                  TextFormField(
+                    readOnly: true,
+                    initialValue: httpUrl,
+                    style: TextStyle(fontSize: television ? 18 : 14),
+                    decoration: _settingsFieldDecoration().copyWith(
+                      suffixIcon: IconButton(
+                        tooltip: l10n.copyUrl,
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: httpUrl!));
                         },
-                        icon: Icon(Icons.copy, size: television ? 28 : 22),
+                        icon: Icon(Icons.copy, size: television ? 28 : 20),
                       ),
-                    ],
+                    ),
                   )
                 else
                   Text(
-                    httpError ?? '请先连接 Wi-Fi',
+                    httpError ?? l10n.connectWifi,
                     style: TextStyle(
                       fontSize: television ? 18 : 14,
                       color: Colors.orangeAccent,
                     ),
                   ),
                 Text(
-                  '同一 Wi-Fi 下打开此地址即可播放；未加密',
+                  l10n.lanDisclosure,
                   style: TextStyle(
                     fontSize: television ? 16 : 13,
                     color: Colors.white70,
@@ -1673,16 +1752,116 @@ class _SettingsSheet extends StatelessWidget {
   }
 }
 
+InputDecoration _settingsFieldDecoration({String? hint}) {
+  return InputDecoration(
+    hintText: hint,
+    filled: true,
+    fillColor: const Color(0xFF2A2A2A),
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide.none,
+    ),
+  );
+}
+
+class _SettingsDropdown<T> extends StatelessWidget {
+  const _SettingsDropdown({
+    required this.television,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final bool television;
+  final T? value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<T>(
+      isExpanded: true,
+      value: value,
+      items: items,
+      onChanged: onChanged,
+      style: TextStyle(fontSize: television ? 20 : 16, color: Colors.white),
+      dropdownColor: const Color(0xFF2A2A2A),
+      decoration: _settingsFieldDecoration(),
+    );
+  }
+}
+
+class _SettingsChoiceRow<T> extends StatelessWidget {
+  const _SettingsChoiceRow({
+    required this.television,
+    required this.value,
+    required this.options,
+    required this.labelOf,
+    required this.onSelected,
+  });
+
+  final bool television;
+  final T value;
+  final List<T> options;
+  final String Function(T) labelOf;
+  final ValueChanged<T> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < options.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => onSelected(options[i]),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: value == options[i]
+                    ? const Color(0xFF2A3A55)
+                    : const Color(0xFF2A2A2A),
+                foregroundColor: Colors.white,
+                side: BorderSide(
+                  color: value == options[i]
+                      ? Colors.lightBlueAccent
+                      : Colors.white24,
+                ),
+                padding: EdgeInsets.symmetric(
+                  vertical: television ? 16 : 10,
+                  horizontal: 4,
+                ),
+                minimumSize: Size(0, television ? 56 : 40),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  labelOf(options[i]),
+                  maxLines: 1,
+                  style: TextStyle(fontSize: television ? 18 : 13),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _SettingsSection extends StatelessWidget {
   const _SettingsSection({
     required this.title,
     required this.television,
     required this.children,
+    this.trailing,
   });
 
   final String title;
   final bool television;
   final List<Widget> children;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -1691,15 +1870,23 @@ class _SettingsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: television ? 20 : 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.white70,
+          if (title.isNotEmpty)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: television ? 20 : 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ),
+                if (trailing != null) trailing!,
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
+          if (title.isNotEmpty) const SizedBox(height: 8),
           ...children,
           const SizedBox(height: 8),
         ],
@@ -1735,6 +1922,7 @@ class _CaptureBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final gap = television ? 12.0 : 8.0;
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -1752,7 +1940,7 @@ class _CaptureBar extends StatelessWidget {
                   child: _ControlButton(
                     order: 5,
                     television: television,
-                    label: streaming ? '停止推流' : '推流',
+                    label: streaming ? l10n.stopStream : l10n.startStream,
                     icon: streaming ? Icons.stop_circle : Icons.wifi_tethering,
                     onPressed: onStream,
                     textStyle: buttonStyle,
@@ -1765,7 +1953,7 @@ class _CaptureBar extends StatelessWidget {
                   autofocus: television,
                   order: 1,
                   television: television,
-                  label: recording ? '停止录制' : '开始录制',
+                  label: recording ? l10n.stopRecord : l10n.startRecord,
                   icon: recording ? Icons.stop : Icons.fiber_manual_record,
                   onPressed: onRecord,
                   textStyle: buttonStyle,
@@ -1776,7 +1964,7 @@ class _CaptureBar extends StatelessWidget {
                 child: _ControlButton(
                   order: 3,
                   television: television,
-                  label: muted ? '取消静音' : '预览静音',
+                  label: muted ? l10n.unmutePreview : l10n.mutePreview,
                   icon: muted ? Icons.volume_off : Icons.volume_up,
                   onPressed: onMute,
                   textStyle: buttonStyle,
@@ -1788,7 +1976,7 @@ class _CaptureBar extends StatelessWidget {
                   child: _ControlButton(
                     order: 4,
                     television: television,
-                    label: '全屏',
+                    label: l10n.fullscreen,
                     icon: Icons.fullscreen,
                     onPressed: onImmersive,
                     textStyle: buttonStyle,
@@ -1840,11 +2028,13 @@ class _ControlButton extends StatelessWidget {
           ),
           onPressed: onPressed,
           icon: Icon(icon, size: television ? 32 : 20),
-          label: Text(
-            label,
-            style: textStyle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          label: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: textStyle,
+              maxLines: 1,
+            ),
           ),
         ),
       ),

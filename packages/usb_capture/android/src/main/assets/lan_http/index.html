@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>USB Studio · 局域网播放</title>
+  <title>USB Studio · LAN playback</title>
   <style>
     :root {
       color-scheme: dark;
@@ -91,17 +91,17 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>USB Studio · 局域网播放</h1>
-    <p class="hint">同一 Wi-Fi 用 HTTP 打开即可，不需要 HTTPS。现场默认静音，点播放器取消静音。</p>
+    <h1 id="page-title">USB Studio · LAN playback</h1>
+    <p class="hint" id="page-hint">Open this HTTP address on the same Wi-Fi. HTTPS is not required. Live starts muted; tap the player to unmute.</p>
 
-    <h2>现场</h2>
+    <h2 id="live-heading">Live</h2>
     <div class="player">
       <video id="live" controls autoplay muted playsinline></video>
-      <div class="live-status" id="live-status">等待采集卡</div>
+      <div class="live-status" id="live-status">Waiting for capture card</div>
     </div>
 
-    <h2>已录成片</h2>
-    <div id="recordings"><p class="empty">加载中…</p></div>
+    <h2 id="recordings-heading">Recordings</h2>
+    <div id="recordings"><p class="empty" id="recordings-loading">Loading…</p></div>
     <div class="player" id="vod-wrap">
       <video id="vod" controls playsinline></video>
     </div>
@@ -109,7 +109,22 @@
 
   <script src="/hls.min.js"></script>
   <script>
+    window.LAN_I18N = window.LAN_I18N || {};
     (function () {
+      var i18n = window.LAN_I18N || {};
+      document.documentElement.lang = i18n.lang || 'en';
+      document.title = i18n.title || document.title;
+      var setText = function (id, value) {
+        var el = document.getElementById(id);
+        if (el && value) el.textContent = value;
+      };
+      setText('page-title', i18n.title);
+      setText('page-hint', i18n.hint);
+      setText('live-heading', i18n.live);
+      setText('live-status', i18n.waitingCard);
+      setText('recordings-heading', i18n.recordings);
+      setText('recordings-loading', i18n.loading);
+
       var liveVideo = document.getElementById('live');
       var liveStatus = document.getElementById('live-status');
       var container = document.getElementById('recordings');
@@ -119,7 +134,7 @@
       var livePoll = null;
 
       function showWaiting(text) {
-        liveStatus.textContent = text || '等待采集卡';
+        liveStatus.textContent = text || i18n.waitingCard || 'Waiting for capture card';
         liveStatus.classList.remove('hidden');
       }
 
@@ -170,7 +185,7 @@
               liveHls.recoverMediaError();
               return;
             }
-            showWaiting('等待采集卡');
+            showWaiting(i18n.waitingCard);
             destroyLiveHls();
             scheduleLivePoll();
           });
@@ -181,7 +196,7 @@
           liveVideo.play().catch(function () {});
           return;
         }
-        showWaiting('当前浏览器无法播放现场');
+        showWaiting(i18n.liveUnsupported);
       }
 
       function pollLiveOnce() {
@@ -193,11 +208,11 @@
               attachLive();
               return true;
             }
-            showWaiting('等待采集卡');
+            showWaiting(i18n.waitingCard);
             return false;
           })
           .catch(function () {
-            showWaiting('等待采集卡');
+            showWaiting(i18n.waitingCard);
             return false;
           });
       }
@@ -229,19 +244,19 @@
 
       fetch('/api/recordings')
         .then(function (res) {
-          if (!res.ok) throw new Error('加载失败');
+          if (!res.ok) throw new Error('load failed');
           return res.json();
         })
         .then(function (items) {
           if (!items.length) {
-            container.innerHTML = '<p class="empty">暂无录像</p>';
+            container.innerHTML = '<p class="empty">' + escapeHtml(i18n.empty || '') + '</p>';
             return;
           }
           var list = document.createElement('div');
           list.className = 'list';
           items.forEach(function (item) {
             var id = item.id || '';
-            var name = item.name || '未命名';
+            var name = item.name || i18n.unnamed || 'Untitled';
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'item';
@@ -264,7 +279,7 @@
           container.appendChild(list);
         })
         .catch(function () {
-          container.innerHTML = '<p class="error">无法加载录像列表</p>';
+          container.innerHTML = '<p class="error">' + escapeHtml(i18n.loadFailed || '') + '</p>';
         });
 
       function escapeHtml(text) {

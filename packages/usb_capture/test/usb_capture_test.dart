@@ -131,6 +131,9 @@ class MockUsbCapturePlatform
 
   @override
   Future<SaveLocation?> pickSaveFolder() async => null;
+
+  @override
+  Future<void> setUiLocale(String tag) async {}
 }
 
 void main() {
@@ -214,6 +217,21 @@ void main() {
         ),
       ),
     );
+  });
+
+  test('setUiLocale method channel sends the BCP-47 tag', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('usb_capture');
+    final platform = MethodChannelUsbCapture();
+    String? sent;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'setUiLocale');
+      sent = (call.arguments as Map)['tag'] as String?;
+      return null;
+    });
+    await platform.setUiLocale('zh-Hant');
+    expect(sent, 'zh-Hant');
   });
 
   test('method channel maps permission errors', () async {

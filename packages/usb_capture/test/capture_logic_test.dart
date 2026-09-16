@@ -249,6 +249,8 @@ void main() {
       expect(SegmentPolicy.nextIndex(1), 2);
       expect(SegmentPolicy.duration, const Duration(minutes: 10));
       expect(SegmentPolicy.normalizeMinutes(8), 10);
+      expect(SegmentPolicy.normalizeMinutes(1), 1);
+      expect(SegmentPolicy.allowedMinutes, containsAll([0, 1, 5, 10, 15, 30]));
       expect(
         SegmentPolicy.recLabel(
           elapsed: const Duration(hours: 1, minutes: 2, seconds: 4),

@@ -98,7 +98,7 @@ class CaptureRecordService : Service() {
             hud.recording && hud.segmented -> "正在录制 $elapsed · 第 ${hud.segmentIndex} 段"
             hud.recording -> "正在录制 $elapsed"
             hud.httpServing -> "局域网播放"
-            else -> "USB采集"
+            else -> "USB Studio"
         }
         val text = if (hud.httpServing && (hud.recording || hud.streaming)) {
             "$baseText · 局域网播放"
@@ -106,7 +106,7 @@ class CaptureRecordService : Service() {
             baseText
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("USB采集")
+            .setContentTitle("USB Studio")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setOngoing(true)

@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:usb_camera_capture/library_page.dart';
-import 'package:usb_camera_capture/operator_prefs.dart';
+import 'package:usb_studio/library_page.dart';
+import 'package:usb_studio/operator_prefs.dart';
 import 'package:usb_capture/usb_capture.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -914,7 +914,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
               children: [
                 if (!_session.immersive)
                   _Header(
-                    status: _status ?? (_error?.message ?? 'USB 采集'),
+                    status: _status ?? (_error?.message ?? 'USB Studio'),
                     deviceName: _active?.name,
                     error: _error,
                     television: _tv,

@@ -128,14 +128,14 @@ On Android, while recording is in progress, the app SHALL keep capturing after t
 - **THEN** the UI SHALL show recording in progress with elapsed time and MUST NOT start a second recording
 
 ### Requirement: Optional recording segments
-The operator SHALL be able to disable segmentation or choose a segment length of 5, 10, 15, or 30 minutes from a settings dropdown. A value of zero minutes SHALL record the session as one file named `USB_<timestamp>.mp4` without a numeric suffix. Changing the interval while recording MUST be rejected without stopping the recording. The recording indicator SHALL omit the segment index when segmentation is disabled. Default SHALL be 10 minutes. A brief gap between segments is allowed. The app MUST NOT concatenate segments into one file.
+The operator SHALL be able to disable segmentation or choose a segment length of 1, 5, 10, 15, or 30 minutes from a settings dropdown. A value of zero minutes SHALL record the session as one file named `USB_<timestamp>.mp4` without a numeric suffix. Changing the interval while recording MUST be rejected without stopping the recording. The recording indicator SHALL omit the segment index when segmentation is disabled. Default SHALL be 10 minutes. A brief gap between segments is allowed. The app MUST NOT concatenate segments into one file.
 
 #### Scenario: Disabled segmentation writes one file
 - **WHEN** segmentation is off and the user records then stops
 - **THEN** the library SHALL contain one timestamped file without a `_NN` suffix
 
 #### Scenario: Chosen interval rolls files
-- **WHEN** the operator selects a 5, 10, 15, or 30 minute interval and records longer than that interval
+- **WHEN** the operator selects a 1, 5, 10, 15, or 30 minute interval and records longer than that interval
 - **THEN** the app SHALL publish a completed segment and continue into the next file without closing the capture device
 
 #### Scenario: Segment publish does not stop the session

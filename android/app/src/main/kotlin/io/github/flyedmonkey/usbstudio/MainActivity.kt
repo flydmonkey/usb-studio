@@ -1,4 +1,4 @@
-package com.usbcamera.capture.usb_camera_capture
+package io.github.flyedmonkey.usbstudio
 
 import io.flutter.embedding.android.FlutterActivity
 

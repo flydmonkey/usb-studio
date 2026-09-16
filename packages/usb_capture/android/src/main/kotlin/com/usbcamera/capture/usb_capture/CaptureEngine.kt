@@ -500,7 +500,7 @@ class CaptureEngine(
         if (recording || helper?.isRecording == true) {
             throw CaptureException("recordingFailed", "recordingInProgress")
         }
-        val minutes = if (segmentMinutes in intArrayOf(0, 5, 10, 15, 30)) {
+        val minutes = if (segmentMinutes in intArrayOf(0, 1, 5, 10, 15, 30)) {
             segmentMinutes
         } else {
             10

@@ -7,7 +7,7 @@ class SessionSegment {
 
 class SegmentPolicy {
   static const duration = Duration(minutes: 10);
-  static const allowedMinutes = [0, 5, 10, 15, 30];
+  static const allowedMinutes = [0, 1, 5, 10, 15, 30];
   static final _segmentName = RegExp(
     r'^USB_(\d{8}_\d{6})_(\d{2})\.mp4$',
     caseSensitive: false,

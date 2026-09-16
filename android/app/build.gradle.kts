@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.usbcamera.capture.usb_camera_capture"
+    namespace = "io.github.flyedmonkey.usbstudio"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -16,7 +16,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.usbcamera.capture.usb_camera_capture"
+        applicationId = "io.github.flyedmonkey.usbstudio"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:usb_camera_capture/operator_prefs.dart';
+import 'package:usb_studio/operator_prefs.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

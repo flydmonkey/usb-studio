@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:usb_camera_capture/library_page.dart';
-import 'package:usb_camera_capture/operator_prefs.dart';
-import 'package:usb_camera_capture/preview_page.dart';
+import 'package:usb_studio/library_page.dart';
+import 'package:usb_studio/operator_prefs.dart';
+import 'package:usb_studio/preview_page.dart';
 import 'package:usb_capture/usb_capture.dart';
 import 'package:usb_capture/usb_capture_platform_interface.dart';
 

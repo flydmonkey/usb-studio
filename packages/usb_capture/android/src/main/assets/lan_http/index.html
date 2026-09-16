@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>USB 采集 · 局域网播放</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #111;
+      color: #eee;
+    }
+    .wrap {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    h1 { font-size: 1.2rem; margin: 0 0 4px; }
+    .hint { color: #888; font-size: 0.85rem; margin: 0 0 16px; }
+    h2 { font-size: 0.95rem; color: #bbb; margin: 20px 0 8px; }
+    .player {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .player video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #000;
+    }
+    .live-status {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      color: #ccc;
+      font-size: 0.95rem;
+    }
+    .live-status.hidden { display: none; }
+    .list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      margin: 0 0 8px;
+      padding: 12px 14px;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      background: #1a1a1a;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .item:hover, .item.active {
+      border-color: #4aa3ff;
+      background: #1c2733;
+    }
+    .item .name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .item .meta {
+      color: #888;
+      font-size: 0.82rem;
+      flex-shrink: 0;
+    }
+    .empty, .error { color: #888; margin: 8px 0; }
+    .error { color: #f88; }
+    #vod-wrap { display: none; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>USB 采集 · 局域网播放</h1>
+    <p class="hint">同一 Wi-Fi 用 HTTP 打开即可，不需要 HTTPS。现场默认静音，点播放器取消静音。</p>
+
+    <h2>现场</h2>
+    <div class="player">
+      <video id="live" controls autoplay muted playsinline></video>
+      <div class="live-status" id="live-status">等待采集卡</div>
+    </div>
+
+    <h2>已录成片</h2>
+    <div id="recordings"><p class="empty">加载中…</p></div>
+    <div class="player" id="vod-wrap">
+      <video id="vod" controls playsinline></video>
+    </div>
+  </div>
+
+  <script src="/hls.min.js"></script>
+  <script>
+    (function () {
+      var liveVideo = document.getElementById('live');
+      var liveStatus = document.getElementById('live-status');
+      var container = document.getElementById('recordings');
+      var vodWrap = document.getElementById('vod-wrap');
+      var vodVideo = document.getElementById('vod');
+      var liveHls = null;
+      var livePoll = null;
+
+      function showWaiting(text) {
+        liveStatus.textContent = text || '等待采集卡';
+        liveStatus.classList.remove('hidden');
+      }
+
+      function hideWaiting() {
+        liveStatus.classList.add('hidden');
+      }
+
+      function playlistReady(text) {
+        var matches = text.match(/#EXTINF/g);
+        return matches && matches.length >= 1;
+      }
+
+      function destroyLiveHls() {
+        if (liveHls) {
+          liveHls.destroy();
+          liveHls = null;
+        }
+      }
+
+      function attachLive() {
+        var src = '/live.m3u8';
+        destroyLiveHls();
+        if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+          liveHls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: false,
+            liveSyncDurationCount: 3,
+            liveMaxLatencyDurationCount: 6,
+            manifestLoadingMaxRetry: 30,
+            manifestLoadingRetryDelay: 1500,
+            levelLoadingMaxRetry: 30,
+            fragLoadingMaxRetry: 8,
+            maxBufferHole: 2.0
+          });
+          liveHls.loadSource(src);
+          liveHls.attachMedia(liveVideo);
+          liveHls.on(Hls.Events.MANIFEST_PARSED, function () {
+            hideWaiting();
+            liveVideo.play().catch(function () {});
+          });
+          liveHls.on(Hls.Events.ERROR, function (_event, data) {
+            if (!data.fatal) return;
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              liveHls.startLoad();
+              return;
+            }
+            if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              liveHls.recoverMediaError();
+              return;
+            }
+            showWaiting('等待采集卡');
+            destroyLiveHls();
+            scheduleLivePoll();
+          });
+          return;
+        }
+        if (liveVideo.canPlayType('application/vnd.apple.mpegurl')) {
+          liveVideo.src = src;
+          liveVideo.play().catch(function () {});
+          return;
+        }
+        showWaiting('当前浏览器无法播放现场');
+      }
+
+      function pollLiveOnce() {
+        return fetch('/live.m3u8', { cache: 'no-store' })
+          .then(function (res) { return res.text(); })
+          .then(function (text) {
+            if (playlistReady(text)) {
+              hideWaiting();
+              attachLive();
+              return true;
+            }
+            showWaiting('等待采集卡');
+            return false;
+          })
+          .catch(function () {
+            showWaiting('等待采集卡');
+            return false;
+          });
+      }
+
+      function scheduleLivePoll() {
+        if (livePoll) return;
+        livePoll = setInterval(function () {
+          pollLiveOnce().then(function (ready) {
+            if (ready) {
+              clearInterval(livePoll);
+              livePoll = null;
+            }
+          });
+        }, 2000);
+      }
+
+      liveVideo.addEventListener('playing', hideWaiting);
+      pollLiveOnce().then(function (ready) {
+        if (!ready) scheduleLivePoll();
+      });
+
+      function formatBytes(bytes) {
+        var n = Number(bytes) || 0;
+        if (n >= 1073741824) return (n / 1073741824).toFixed(1) + ' GB';
+        if (n >= 1048576) return Math.round(n / 1048576) + ' MB';
+        if (n >= 1024) return Math.round(n / 1024) + ' KB';
+        return n + ' B';
+      }
+
+      fetch('/api/recordings')
+        .then(function (res) {
+          if (!res.ok) throw new Error('加载失败');
+          return res.json();
+        })
+        .then(function (items) {
+          if (!items.length) {
+            container.innerHTML = '<p class="empty">暂无录像</p>';
+            return;
+          }
+          var list = document.createElement('div');
+          list.className = 'list';
+          items.forEach(function (item) {
+            var id = item.id || '';
+            var name = item.name || '未命名';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'item';
+            btn.innerHTML =
+              '<span class="name">' + escapeHtml(name) + '</span>' +
+              '<span class="meta">' + formatBytes(item.bytes) + '</span>';
+            btn.addEventListener('click', function () {
+              list.querySelectorAll('.item').forEach(function (el) {
+                el.classList.remove('active');
+              });
+              btn.classList.add('active');
+              vodWrap.style.display = 'block';
+              vodVideo.src = '/vod/' + encodeURIComponent(id);
+              vodVideo.play().catch(function () {});
+              vodWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+            list.appendChild(btn);
+          });
+          container.innerHTML = '';
+          container.appendChild(list);
+        })
+        .catch(function () {
+          container.innerHTML = '<p class="error">无法加载录像列表</p>';
+        });
+
+      function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+    })();
+  </script>
+</body>
+</html>

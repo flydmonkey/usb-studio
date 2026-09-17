@@ -41,7 +41,7 @@
   <p>If you start streaming, USB Studio sends the live capture-card audio/video to the <strong>RTMP/RTMPS URL you enter</strong>. That destination is controlled by you. The developer does not receive that stream.</p>
 
   <h3>LAN playback (optional)</h3>
-  <p>If you enable LAN playback, the app starts a local <strong>unencrypted HTTP</strong> server on your Wi-Fi/LAN so other devices on the same network can watch silent live preview or saved recordings. Anyone on that network who knows the URL can open it. This traffic is not sent to the developer and is not HTTPS.</p>
+  <p>If you enable LAN playback, the app starts a local <strong>unencrypted HTTP</strong> server on your Wi-Fi/LAN so other devices on the same network can watch silent live preview or saved recordings, and download those recordings. Anyone on that network who knows the URL can open it. This traffic is not sent to the developer and is not HTTPS.</p>
 
   <h3>Notifications and battery</h3>
   <p>While recording, streaming, or LAN playback is active, Android may show a persistent notification (foreground service) so capture can continue in the background. Notification permission is requested when those features start, not at first launch. You may also be asked to ignore battery optimizations so lock-screen recording is not killed; this is optional.</p>
@@ -76,7 +76,7 @@
   <p>若你开始推流，USB Studio 会把采集卡的实时音视频发到<strong>你填写的 RTMP/RTMPS 地址</strong>。目的地由你控制。开发者收不到这条流。</p>
 
   <h3>局域网播放（可选）</h3>
-  <p>若打开局域网播放，应用会在当前局域网启动<strong>未加密的 HTTP</strong> 服务，同一网络上的其他设备可以用浏览器看无声现场画面或已录成片。知道地址的人都可以打开。流量不会发到开发者，也不使用 HTTPS。</p>
+  <p>若打开局域网播放，应用会在当前局域网启动<strong>未加密的 HTTP</strong> 服务，同一网络上的其他设备可以用浏览器看无声现场画面或已录成片，并下载这些成片。知道地址的人都可以打开。流量不会发到开发者，也不使用 HTTPS。</p>
 
   <h3>通知和电池</h3>
   <p>录制、推流或局域网播放进行中，Android 可能显示持续通知（前台服务），以便锁屏或切到后台后仍能采集。通知权限在这些功能启动时才申请，而不是一打开应用就申请。系统也可能提示忽略电池优化，以便锁屏续录；这项可以拒绝。</p>

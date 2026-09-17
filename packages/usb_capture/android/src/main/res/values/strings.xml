@@ -29,4 +29,5 @@
     <string name="lan_load_failed">Could not load recordings</string>
     <string name="lan_empty">No recordings yet</string>
     <string name="lan_unnamed">Untitled</string>
+    <string name="lan_download">Download</string>
 </resources>

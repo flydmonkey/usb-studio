@@ -28,4 +28,5 @@
     <string name="lan_load_failed">无法加载录像列表</string>
     <string name="lan_empty">暂无录像</string>
     <string name="lan_unnamed">未命名</string>
+    <string name="lan_download">下载</string>
 </resources>

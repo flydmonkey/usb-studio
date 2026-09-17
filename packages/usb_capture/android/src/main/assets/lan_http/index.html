@@ -126,11 +126,26 @@
       color: inherit;
       font: inherit;
       text-align: left;
-      cursor: pointer;
     }
     .item:hover, .item.active {
       border-color: #4aa3ff;
       background: #1c2733;
+    }
+    .item .play {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
     }
     .item .name {
       overflow: hidden;
@@ -142,6 +157,13 @@
       font-size: 0.82rem;
       flex-shrink: 0;
     }
+    .item .dl {
+      flex-shrink: 0;
+      color: #4aa3ff;
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+    .item .dl:hover { text-decoration: underline; }
     .empty, .error { color: #888; margin: 8px 0; }
     .error { color: #f88; }
   </style>
@@ -388,17 +410,19 @@
           items.forEach(function (item) {
             var id = item.id || '';
             var name = item.name || i18n.unnamed || 'Untitled';
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'item';
-            btn.innerHTML =
+            var row = document.createElement('div');
+            row.className = 'item';
+            var play = document.createElement('button');
+            play.type = 'button';
+            play.className = 'play';
+            play.innerHTML =
               '<span class="name">' + escapeHtml(name) + '</span>' +
               '<span class="meta">' + formatBytes(item.bytes) + '</span>';
-            btn.addEventListener('click', function () {
+            play.addEventListener('click', function () {
               list.querySelectorAll('.item').forEach(function (el) {
                 el.classList.remove('active');
               });
-              btn.classList.add('active');
+              row.classList.add('active');
               vodActive = true;
               setLiveOn(false);
               vodVideo.classList.remove('hidden');
@@ -407,7 +431,17 @@
               hideOverlay();
               vodVideo.play().catch(function () {});
             });
-            list.appendChild(btn);
+            var dl = document.createElement('a');
+            dl.className = 'dl';
+            dl.href = '/vod/' + encodeURIComponent(id) + '?download=1';
+            dl.setAttribute('download', '');
+            dl.textContent = i18n.download || 'Download';
+            dl.addEventListener('click', function (event) {
+              event.stopPropagation();
+            });
+            row.appendChild(play);
+            row.appendChild(dl);
+            list.appendChild(row);
           });
           container.innerHTML = '';
           container.appendChild(list);

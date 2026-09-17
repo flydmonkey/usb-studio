@@ -39,7 +39,7 @@ The server SHALL bind `0.0.0.0`, prefer port `8080`, and increment the port if o
 | `GET /api/recordings` | JSON array `[{id,name,bytes}]` for the home page library list (same ids as in-app library) |
 | `GET /api/live` | JSON `{hasCard,mjpeg,paused,ready}` for live overlay state |
 | `GET /live.mjpeg` | Live MJPEG (`multipart/x-mixed-replace`) of the latest UVC JPEG. When no JPEG is available the connection MAY wait. The page SHALL show waiting, need-MJPEG, or paused-while-streaming as appropriate |
-| `GET /vod/<id>` | Saved MP4 with `video/mp4` and HTTP Range support for progressive playback |
+| `GET /vod/<id>` | Saved MP4 with `video/mp4` and HTTP Range support for progressive playback. `GET /vod/<id>?download=1` SHALL return the whole file with `Content-Disposition: attachment` so a browser can save it |
 
 The recording list SHALL use the same source and ids as the in-app library (album / Movies / Downloads / custom folder). Live SHALL NOT include audio.
 
@@ -62,6 +62,12 @@ The recording list SHALL use the same source and ids as the in-app library (albu
 #### Scenario: VOD supports Range
 - **WHEN** a client requests `GET /vod/<id>` with a valid `Range` header for an existing file
 - **THEN** the server SHALL respond with `206 Partial Content` and the requested byte range
+
+#### Scenario: VOD download saves the full file
+- **WHEN** a client requests `GET /vod/<id>?download=1` for an existing recording
+- **THEN** the server SHALL respond with `200` and `Content-Disposition: attachment`, SHALL ignore any `Range` header, and SHALL use the library display name as the filename
+- **WHEN** the operator taps 下载 on a list row
+- **THEN** the browser SHALL download that MP4 and MUST NOT replace in-page playback
 
 #### Scenario: Missing file returns 404
 - **WHEN** a client requests `GET /vod/<id>` for a recording that no longer exists on disk

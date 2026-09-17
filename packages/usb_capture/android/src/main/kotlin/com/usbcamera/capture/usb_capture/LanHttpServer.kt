@@ -89,6 +89,7 @@ class LanHttpServer(
                     .put("loadFailed", localized.getString(R.string.lan_load_failed))
                     .put("empty", localized.getString(R.string.lan_empty))
                     .put("unnamed", localized.getString(R.string.lan_unnamed))
+                    .put("download", localized.getString(R.string.lan_download))
                 val body = html.replace(
                     "window.LAN_I18N = window.LAN_I18N || {};",
                     "window.LAN_I18N = $payload;",
@@ -170,7 +171,8 @@ class LanHttpServer(
             val rangeHeader = session.headers.entries.firstOrNull {
                 it.key.equals("range", ignoreCase = true)
             }?.value
-            val range = HttpRange.parse(rangeHeader, total)
+            val download = VodDownload.requested(session.parms)
+            val range = if (download) null else HttpRange.parse(rangeHeader, total)
             val input = ParcelFileDescriptor.AutoCloseInputStream(pfd)
             return if (range == null) {
                 newFixedLengthResponse(
@@ -180,6 +182,11 @@ class LanHttpServer(
                     total,
                 ).apply {
                     addHeader("Accept-Ranges", "bytes")
+                    if (download) {
+                        val name = listRecordings().firstOrNull { it["id"]?.toString() == id }
+                            ?.get("name")?.toString()
+                        addHeader("Content-Disposition", VodDownload.contentDisposition(name))
+                    }
                 }
             } else {
                 skipFully(input, range.start)

@@ -28,4 +28,5 @@
     <string name="lan_load_failed">録画を読み込めません</string>
     <string name="lan_empty">録画はまだありません</string>
     <string name="lan_unnamed">無題</string>
+    <string name="lan_download">ダウンロード</string>
 </resources>

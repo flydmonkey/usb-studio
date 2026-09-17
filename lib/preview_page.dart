@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:usb_studio/capture_copy.dart';
 import 'package:usb_studio/l10n/app_localizations.dart';
 import 'package:usb_studio/library_page.dart';
 import 'package:usb_studio/locale_mode.dart';
 import 'package:usb_studio/operator_prefs.dart';
+import 'package:usb_studio/play_listing.dart';
 import 'package:usb_capture/usb_capture.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 class PreviewPage extends StatefulWidget {
@@ -43,6 +46,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
   bool _deferAutoRecord = false;
   String? _httpUrl;
   String? _httpError;
+  String _appVersion = '';
 
   bool get _tv => widget.television;
 
@@ -67,6 +71,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       );
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      unawaited(_loadVersion());
       if (widget.initialPrefs == null) {
         await _loadPrefs();
       } else {
@@ -102,6 +107,14 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       widget.plugin.close();
     }
     super.dispose();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _appVersion = info.version);
+    } catch (_) {}
   }
 
   Future<void> _loadPrefs() async {
@@ -168,6 +181,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
   }
 
   Future<void> _startHttpServer() async {
+    await _ensureNotifications();
     try {
       final result = await widget.plugin.startHttpServer();
       if (!mounted) return;
@@ -220,7 +234,9 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       return;
     }
     try {
-      await widget.plugin.requestPermissions();
+      if (!await _ensureCapturePermissions()) {
+        return;
+      }
       final restored = await _restoreNativeSession();
       if (!restored) {
         await _refreshDevices(autoConnect: true);
@@ -228,6 +244,63 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
     } on CaptureError catch (error) {
       setState(() => _error = error);
     }
+  }
+
+  Future<bool> _ensureCapturePermissions() async {
+    final already = await widget.plugin.hasCapturePermissions();
+    if (!already) {
+      if (!mounted) return false;
+      final proceed = await _showCaptureDisclosure();
+      if (!proceed) {
+        if (mounted) {
+          setState(
+            () => _error = const CaptureError(CaptureErrorCode.permissionDenied),
+          );
+        }
+        return false;
+      }
+    }
+    try {
+      await widget.plugin.requestPermissions();
+      return true;
+    } on CaptureError catch (error) {
+      if (mounted) setState(() => _error = error);
+      return false;
+    }
+  }
+
+  Future<bool> _showCaptureDisclosure() async {
+    final proceed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final l10n = AppLocalizations.of(context);
+        return AlertDialog(
+          key: const Key('permission-disclosure'),
+          title: Text(l10n.permissionDisclosureTitle),
+          content: Text(l10n.permissionDisclosureBody),
+          actions: [
+            TextButton(
+              key: const Key('permission-disclosure-not-now'),
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(l10n.permissionDisclosureNotNow),
+            ),
+            TextButton(
+              key: const Key('permission-disclosure-continue'),
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(l10n.permissionDisclosureContinue),
+            ),
+          ],
+        );
+      },
+    );
+    return proceed == true;
+  }
+
+  Future<void> _ensureNotifications() async {
+    try {
+      await widget.plugin.requestNotificationPermission();
+    } catch (_) {}
   }
 
   Future<bool> _restoreNativeSession() async {
@@ -451,6 +524,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
   }
 
   Future<void> _beginRecording() async {
+    await _ensureNotifications();
     await widget.plugin.startRecording(segmentMinutes: _prefs.segmentMinutes);
     final started = DateTime.now();
     _recordStartedAt = started;
@@ -530,6 +604,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
           });
           return;
         }
+        await _ensureNotifications();
         await widget.plugin.startStream(url);
         setState(() {
           _session = _session.startStreaming();
@@ -812,6 +887,70 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
     _syncWakelock();
   }
 
+  Future<void> _openPrivacyPolicy() async {
+    final uri = Uri.parse(privacyPolicyUrl);
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
+  }
+
+  Future<void> _openAbout() async {
+    final television = _tv;
+    final version = _appVersion;
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        final l10n = AppLocalizations.of(context);
+        final textStyle = TextStyle(fontSize: television ? 20 : 16);
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          title: Text(
+            'USB Studio',
+            key: const Key('about-product-name'),
+            style: TextStyle(
+              fontSize: television ? 24 : 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (version.isNotEmpty) ...[
+                Text(l10n.appVersion(version), style: textStyle),
+                SizedBox(height: television ? 12 : 8),
+              ],
+              Text(l10n.aboutDeveloper(playDeveloperName), style: textStyle),
+              SizedBox(height: television ? 16 : 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  key: const Key('about-privacy-policy'),
+                  onPressed: _openPrivacyPolicy,
+                  child: Text(l10n.privacyPolicy),
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  key: const Key('about-licenses'),
+                  onPressed: () {
+                    showLicensePage(
+                      context: context,
+                      applicationName: 'USB Studio',
+                      applicationVersion: version,
+                    );
+                  },
+                  child: Text(l10n.openSourceLicenses),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _openSettings() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -917,6 +1056,8 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
                         httpLanSupported: widget.profile.httpLanSupported,
                         httpUrl: _httpUrl,
                         httpError: _httpError,
+                        appVersion: _appVersion,
+                        onAbout: _openAbout,
                       ),
                     ),
                   ),
@@ -1419,6 +1560,8 @@ class _SettingsSheet extends StatelessWidget {
     required this.onLocaleMode,
     required this.rtmpStreamSupported,
     required this.httpLanSupported,
+    required this.appVersion,
+    required this.onAbout,
     this.httpUrl,
     this.httpError,
   });
@@ -1445,6 +1588,8 @@ class _SettingsSheet extends StatelessWidget {
   final ValueChanged<LocaleMode> onLocaleMode;
   final bool rtmpStreamSupported;
   final bool httpLanSupported;
+  final String appVersion;
+  final VoidCallback onAbout;
   final String? httpUrl;
   final String? httpError;
 
@@ -1747,6 +1892,28 @@ class _SettingsSheet extends StatelessWidget {
               ],
             ],
           ),
+        _SettingsSection(
+          title: l10n.sectionAbout,
+          television: television,
+          children: [
+            ListTile(
+              key: const Key('about-open'),
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                'USB Studio',
+                style: TextStyle(fontSize: television ? 20 : 16),
+              ),
+              subtitle: appVersion.isEmpty
+                  ? null
+                  : Text(
+                      l10n.appVersion(appVersion),
+                      style: TextStyle(fontSize: television ? 16 : 13),
+                    ),
+              trailing: Icon(Icons.chevron_right, size: television ? 32 : 24),
+              onTap: onAbout,
+            ),
+          ],
+        ),
       ],
     );
   }

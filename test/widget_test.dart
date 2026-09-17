@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:usb_studio/l10n/app_localizations.dart';
@@ -25,6 +26,9 @@ class _FakePlatform extends UsbCapturePlatform with MockPlatformInterfaceMixin {
   final List<CaptureDevice> devices;
   final List<CaptureFormat> formats;
   final List<PictureControl> pictureControls;
+  bool capturePermissionsGranted = true;
+  int requestPermissionsCalls = 0;
+  int notificationPermissionCalls = 0;
   bool recordingStarted = false;
   int lastSegmentMinutes = 10;
   bool streamStarted = false;
@@ -64,7 +68,18 @@ class _FakePlatform extends UsbCapturePlatform with MockPlatformInterfaceMixin {
   Future<void> open(String deviceId) async {}
 
   @override
-  Future<void> requestPermissions() async {}
+  Future<void> requestPermissions() async {
+    requestPermissionsCalls++;
+    capturePermissionsGranted = true;
+  }
+
+  @override
+  Future<bool> hasCapturePermissions() async => capturePermissionsGranted;
+
+  @override
+  Future<void> requestNotificationPermission() async {
+    notificationPermissionCalls++;
+  }
 
   @override
   Future<void> setPreviewMuted(bool muted) async {}
@@ -287,6 +302,13 @@ Widget localizedApp({
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    PackageInfo.setMockInitialValues(
+      appName: 'USB Studio',
+      packageName: 'io.github.flydmonkey.usbstudio',
+      version: '1.0.0',
+      buildNumber: '1',
+      buildSignature: '',
+    );
   });
 
   testWidgets('shows unsupported message when capture is not supported', (
@@ -1155,5 +1177,125 @@ void main() {
     expect(fake.uiLocale, 'en');
     expect(find.text('请插入 USB 采集卡'), findsNothing);
     expect(find.text('Insert USB capture'), findsWidgets);
+  });
+
+  testWidgets('ungranted capture shows disclosure before requesting', (
+    tester,
+  ) async {
+    final fake = _FakePlatform()..capturePermissionsGranted = false;
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('permission-disclosure')), findsOneWidget);
+    expect(fake.requestPermissionsCalls, 0);
+    await tester.tap(find.byKey(const Key('permission-disclosure-continue')));
+    await tester.pump();
+    await tester.pump();
+    expect(fake.requestPermissionsCalls, 1);
+    expect(find.byKey(const Key('permission-disclosure')), findsNothing);
+  });
+
+  testWidgets('declining disclosure keeps a permission error', (tester) async {
+    final fake = _FakePlatform()..capturePermissionsGranted = false;
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: true,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('permission-disclosure')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('permission-disclosure-not-now')));
+    await tester.pump();
+    await tester.pump();
+    expect(fake.requestPermissionsCalls, 0);
+    expect(find.textContaining('相机'), findsWidgets);
+  });
+
+  testWidgets('granted capture skips disclosure', (tester) async {
+    final fake = _FakePlatform();
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('permission-disclosure')), findsNothing);
+    expect(fake.requestPermissionsCalls, 1);
+  });
+
+  testWidgets('settings shows privacy policy without a capture card', (
+    tester,
+  ) async {
+    final fake = _FakePlatform();
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.byTooltip('设置'));
+    await tester.pumpAndSettle();
+    final about = find.byKey(const Key('about-open'));
+    await tester.ensureVisible(about);
+    await tester.pumpAndSettle();
+    await tester.tap(about);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('about-product-name')), findsOneWidget);
+    expect(find.textContaining('flydmonkey'), findsOneWidget);
+    expect(find.textContaining('shunsora@outlook.com'), findsNothing);
+    expect(find.textContaining('1.0.0'), findsWidgets);
+    expect(find.byKey(const Key('about-privacy-policy')), findsOneWidget);
+    expect(find.text('隐私政策'), findsOneWidget);
+    expect(find.text('开源许可'), findsOneWidget);
+  });
+
+  testWidgets('recording requests notification permission', (tester) async {
+    final fake = _FakePlatform(
+      devices: const [CaptureDevice(id: 'usb-1', name: '采集卡', hasAudio: true)],
+    );
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(fake.notificationPermissionCalls, 0);
+    await tester.tap(find.text('开始录制'));
+    await tester.pump();
+    expect(fake.recordingStarted, isTrue);
+    expect(fake.notificationPermissionCalls, 1);
   });
 }

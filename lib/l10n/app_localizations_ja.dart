@@ -55,6 +55,38 @@ class AppLocalizationsJa extends AppLocalizations {
   String get sectionLan => 'LAN再生';
 
   @override
+  String get sectionAbout => '情報';
+
+  @override
+  String get privacyPolicy => 'プライバシーポリシー';
+
+  @override
+  String get openSourceLicenses => 'オープンソースライセンス';
+
+  @override
+  String appVersion(String version) {
+    return 'バージョン $version';
+  }
+
+  @override
+  String aboutDeveloper(String name) {
+    return '開発者  $name';
+  }
+
+  @override
+  String get permissionDisclosureTitle => 'カメラとマイク';
+
+  @override
+  String get permissionDisclosureBody =>
+      'USB Studio は USB キャプチャカードの映像と音声のためにカメラとマイクの権限を使います。この端末のインカメラでは撮影しません。';
+
+  @override
+  String get permissionDisclosureContinue => '続ける';
+
+  @override
+  String get permissionDisclosureNotNow => '後で';
+
+  @override
   String get recordSegment => '録画分割';
 
   @override

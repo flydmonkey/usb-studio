@@ -55,6 +55,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sectionLan => 'LAN playback';
 
   @override
+  String get sectionAbout => 'About';
+
+  @override
+  String get privacyPolicy => 'Privacy policy';
+
+  @override
+  String get openSourceLicenses => 'Open-source licenses';
+
+  @override
+  String appVersion(String version) {
+    return 'Version $version';
+  }
+
+  @override
+  String aboutDeveloper(String name) {
+    return 'Developer  $name';
+  }
+
+  @override
+  String get permissionDisclosureTitle => 'Camera and microphone';
+
+  @override
+  String get permissionDisclosureBody =>
+      'USB Studio uses camera and microphone permission for USB capture-card video and audio. It does not use this device\'s built-in selfie camera.';
+
+  @override
+  String get permissionDisclosureContinue => 'Continue';
+
+  @override
+  String get permissionDisclosureNotNow => 'Not now';
+
+  @override
   String get recordSegment => 'Segments';
 
   @override

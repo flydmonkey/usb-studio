@@ -33,6 +33,18 @@ abstract class UsbCapturePlatform extends PlatformInterface {
     throw UnimplementedError('requestPermissions() has not been implemented.');
   }
 
+  Future<bool> hasCapturePermissions() {
+    throw UnimplementedError(
+      'hasCapturePermissions() has not been implemented.',
+    );
+  }
+
+  Future<void> requestNotificationPermission() {
+    throw UnimplementedError(
+      'requestNotificationPermission() has not been implemented.',
+    );
+  }
+
   Future<List<CaptureDevice>> listDevices() {
     throw UnimplementedError('listDevices() has not been implemented.');
   }

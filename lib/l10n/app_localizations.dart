@@ -193,6 +193,60 @@ abstract class AppLocalizations {
   /// **'LAN playback'**
   String get sectionLan;
 
+  /// No description provided for @sectionAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get sectionAbout;
+
+  /// No description provided for @privacyPolicy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get privacyPolicy;
+
+  /// No description provided for @openSourceLicenses.
+  ///
+  /// In en, this message translates to:
+  /// **'Open-source licenses'**
+  String get openSourceLicenses;
+
+  /// No description provided for @appVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version}'**
+  String appVersion(String version);
+
+  /// No description provided for @aboutDeveloper.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer  {name}'**
+  String aboutDeveloper(String name);
+
+  /// No description provided for @permissionDisclosureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera and microphone'**
+  String get permissionDisclosureTitle;
+
+  /// No description provided for @permissionDisclosureBody.
+  ///
+  /// In en, this message translates to:
+  /// **'USB Studio uses camera and microphone permission for USB capture-card video and audio. It does not use this device\'s built-in selfie camera.'**
+  String get permissionDisclosureBody;
+
+  /// No description provided for @permissionDisclosureContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get permissionDisclosureContinue;
+
+  /// No description provided for @permissionDisclosureNotNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get permissionDisclosureNotNow;
+
   /// No description provided for @recordSegment.
   ///
   /// In en, this message translates to:

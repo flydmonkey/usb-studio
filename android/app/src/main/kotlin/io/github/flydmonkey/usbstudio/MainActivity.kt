@@ -1,4 +1,4 @@
-package io.github.flyedmonkey.usbstudio
+package io.github.flydmonkey.usbstudio
 
 import io.flutter.embedding.android.FlutterActivity
 

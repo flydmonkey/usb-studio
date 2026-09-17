@@ -55,6 +55,38 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sectionLan => '局域网播放';
 
   @override
+  String get sectionAbout => '关于';
+
+  @override
+  String get privacyPolicy => '隐私政策';
+
+  @override
+  String get openSourceLicenses => '开源许可';
+
+  @override
+  String appVersion(String version) {
+    return '版本 $version';
+  }
+
+  @override
+  String aboutDeveloper(String name) {
+    return '开发者  $name';
+  }
+
+  @override
+  String get permissionDisclosureTitle => '相机和麦克风';
+
+  @override
+  String get permissionDisclosureBody =>
+      'USB Studio 使用相机和麦克风权限，用于 USB 采集卡的画面和声音，不会用本机自拍摄像头采集。';
+
+  @override
+  String get permissionDisclosureContinue => '继续';
+
+  @override
+  String get permissionDisclosureNotNow => '暂不';
+
+  @override
   String get recordSegment => '录制分段';
 
   @override
@@ -439,6 +471,38 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get sectionLan => '區域網播放';
+
+  @override
+  String get sectionAbout => '關於';
+
+  @override
+  String get privacyPolicy => '隱私權政策';
+
+  @override
+  String get openSourceLicenses => '開放原始碼授權';
+
+  @override
+  String appVersion(String version) {
+    return '版本 $version';
+  }
+
+  @override
+  String aboutDeveloper(String name) {
+    return '開發者  $name';
+  }
+
+  @override
+  String get permissionDisclosureTitle => '相機與麥克風';
+
+  @override
+  String get permissionDisclosureBody =>
+      'USB Studio 使用相機與麥克風權限，用於 USB 擷取卡的畫面與聲音，不會用本機自拍相機擷取。';
+
+  @override
+  String get permissionDisclosureContinue => '繼續';
+
+  @override
+  String get permissionDisclosureNotNow => '暫時不要';
 
   @override
   String get recordSegment => '錄製分段';

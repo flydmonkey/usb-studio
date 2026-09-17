@@ -37,6 +37,12 @@ class MockUsbCapturePlatform
   Future<void> requestPermissions() async {}
 
   @override
+  Future<bool> hasCapturePermissions() async => true;
+
+  @override
+  Future<void> requestNotificationPermission() async {}
+
+  @override
   Future<void> setPreviewMuted(bool muted) async {}
 
   @override
@@ -230,6 +236,18 @@ void main() {
     });
     await platform.setUiLocale('zh-Hant');
     expect(sent, 'zh-Hant');
+  });
+
+  test('hasCapturePermissions method channel returns bool', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('usb_capture');
+    final platform = MethodChannelUsbCapture();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'hasCapturePermissions');
+      return false;
+    });
+    expect(await platform.hasCapturePermissions(), isFalse);
   });
 
   test('method channel maps permission errors', () async {

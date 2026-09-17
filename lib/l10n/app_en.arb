@@ -15,6 +15,25 @@
   "sectionPicture": "Picture",
   "sectionStream": "Streaming",
   "sectionLan": "LAN playback",
+  "sectionAbout": "About",
+  "privacyPolicy": "Privacy policy",
+  "openSourceLicenses": "Open-source licenses",
+  "appVersion": "Version {version}",
+  "@appVersion": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "aboutDeveloper": "Developer  {name}",
+  "@aboutDeveloper": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "permissionDisclosureTitle": "Camera and microphone",
+  "permissionDisclosureBody": "USB Studio uses camera and microphone permission for USB capture-card video and audio. It does not use this device's built-in selfie camera.",
+  "permissionDisclosureContinue": "Continue",
+  "permissionDisclosureNotNow": "Not now",
   "recordSegment": "Segments",
   "recordQuality": "Quality",
   "saveLocation": "Save to",

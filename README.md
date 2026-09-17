@@ -52,16 +52,25 @@ test/                         # Widget / 逻辑测试
 ```bash
 flutter pub get
 flutter test
-flutter build apk --release
+flutter build appbundle
 ```
 
-安装（把序列号换成你的设备）：
+Google Play 需要 **AAB**（`build/app/outputs/bundle/release/app-release.aab`），不是 debug 签名的 APK。复制 `android/key.properties.example` 为 `android/key.properties`（已 gitignore），填入 upload keystore。没有该文件时，本机 `flutter run --release` 仍会回退到 debug 签名。
+
+上架文案、Data safety、审核备注在 `docs/play/`。隐私政策网页是 `docs/privacy.html`。把本仓库推到 GitHub 后，在仓库 **Settings → Pages** 选择 Deploy from a branch：`master`、文件夹 `/docs`。公开地址：
+
+https://flydmonkey.github.io/usb-studio/privacy.html
+
+Play Console 和应用内设置（`lib/play_listing.dart`）填同一 URL。首次开启 Pages 后可能要等一两分钟。
+
+侧载 APK：
 
 ```bash
+flutter build apk --release
 adb -s <serial> install -r build/app/outputs/flutter-apk/app-release.apk
 ```
 
-应用 ID 是 `io.github.flyedmonkey.usbstudio`。以前装过「USB采集」的，请先卸载旧包，否则桌面上会同时出现两个图标。
+应用 ID 是 `io.github.flydmonkey.usbstudio`。以前装过旧包名的，请先卸载，否则桌面上会同时出现两个图标。
 
 调试：
 
@@ -69,7 +78,7 @@ adb -s <serial> install -r build/app/outputs/flutter-apk/app-release.apk
 flutter run
 ```
 
-首次打开会申请相机、麦克风、USB 权限。录制和局域网播放会拉起前台服务通知。
+首次打开会先说明相机和麦克风用于 USB 采集卡，确认后再申请。开始录制、推流或打开局域网播放时才会申请通知权限。
 
 ## 怎么用
 

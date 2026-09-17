@@ -6,7 +6,7 @@
 
 桌面图标、通知和文档中的应用名改为 **USB Studio**。USB 表示采集卡输入，Studio 覆盖预览、录像、推流和局域网播放。
 
-应用 ID 改为 `io.github.flyedmonkey.usbstudio`。安装后是新应用，旧的 `com.usbcamera.capture.usb_camera_capture` 需手动卸载。
+应用 ID 改为 `io.github.flydmonkey.usbstudio`。安装后是新应用，旧的 `com.usbcamera.capture.usb_camera_capture` 需手动卸载。
 
 ## 范围
 
@@ -26,5 +26,5 @@
 ## 验收
 
 - 桌面图标显示 USB Studio
-- `adb shell pm path io.github.flyedmonkey.usbstudio` 能找到包
+- `adb shell pm path io.github.flydmonkey.usbstudio` 能找到包
 - `flutter test` 通过

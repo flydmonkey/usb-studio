@@ -34,6 +34,19 @@ class MethodChannelUsbCapture extends UsbCapturePlatform {
   }
 
   @override
+  Future<bool> hasCapturePermissions() async {
+    final value = await methodChannel.invokeMethod<bool>(
+      'hasCapturePermissions',
+    );
+    return value ?? false;
+  }
+
+  @override
+  Future<void> requestNotificationPermission() async {
+    await _invoke('requestNotificationPermission');
+  }
+
+  @override
   Future<List<CaptureDevice>> listDevices() async {
     final list = await methodChannel.invokeListMethod<dynamic>('listDevices');
     return (list ?? const [])

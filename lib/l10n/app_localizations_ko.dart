@@ -55,6 +55,38 @@ class AppLocalizationsKo extends AppLocalizations {
   String get sectionLan => 'LAN 재생';
 
   @override
+  String get sectionAbout => '정보';
+
+  @override
+  String get privacyPolicy => '개인정보처리방침';
+
+  @override
+  String get openSourceLicenses => '오픈소스 라이선스';
+
+  @override
+  String appVersion(String version) {
+    return '버전 $version';
+  }
+
+  @override
+  String aboutDeveloper(String name) {
+    return '개발자  $name';
+  }
+
+  @override
+  String get permissionDisclosureTitle => '카메라와 마이크';
+
+  @override
+  String get permissionDisclosureBody =>
+      'USB Studio는 USB 캡처 카드의 영상과 소리를 위해 카메라와 마이크 권한을 사용합니다. 이 기기의 전면 카메라는 사용하지 않습니다.';
+
+  @override
+  String get permissionDisclosureContinue => '계속';
+
+  @override
+  String get permissionDisclosureNotNow => '나중에';
+
+  @override
   String get recordSegment => '녹화 분할';
 
   @override

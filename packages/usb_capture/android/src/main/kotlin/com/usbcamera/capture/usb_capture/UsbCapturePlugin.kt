@@ -35,6 +35,7 @@ class UsbCapturePlugin :
     private var activityBinding: ActivityPluginBinding? = null
     private var appContext: Context? = null
     private var permissionResult: MethodChannel.Result? = null
+    private var notificationResult: MethodChannel.Result? = null
     private var pickResult: MethodChannel.Result? = null
     private val library = RecordingLibrary { activity }
 
@@ -112,6 +113,8 @@ class UsbCapturePlugin :
                     ?: mapOf("sessionOpen" to false, "recording" to false),
             )
             "requestPermissions" -> requestPermissions(result)
+            "hasCapturePermissions" -> result.success(hasCapturePermissions())
+            "requestNotificationPermission" -> requestNotificationPermission(result)
             "listDevices" -> result.success(engine?.listDevices() ?: emptyList<Map<String, Any?>>())
             "listFormats" -> result.success(engine?.listFormats() ?: emptyList<Map<String, Any?>>())
             "setFormat" -> {
@@ -341,17 +344,27 @@ class UsbCapturePlugin :
         permissions: Array<out String>,
         grantResults: IntArray,
     ): Boolean {
-        if (requestCode != PERMISSION_REQUEST) return false
-        val cameraOk = isGranted(permissions, grantResults, Manifest.permission.CAMERA)
-        val audioOk = isGranted(permissions, grantResults, Manifest.permission.RECORD_AUDIO)
-        val pending = permissionResult
-        permissionResult = null
-        if (cameraOk && audioOk) {
-            pending?.success(null)
-        } else {
-            pending?.error("permissionDenied", "permissionDenied", null)
+        when (requestCode) {
+            PERMISSION_REQUEST -> {
+                val cameraOk = isGranted(permissions, grantResults, Manifest.permission.CAMERA)
+                val audioOk = isGranted(permissions, grantResults, Manifest.permission.RECORD_AUDIO)
+                val pending = permissionResult
+                permissionResult = null
+                if (cameraOk && audioOk) {
+                    pending?.success(null)
+                } else {
+                    pending?.error("permissionDenied", "permissionDenied", null)
+                }
+                return true
+            }
+            NOTIFICATION_REQUEST -> {
+                val pending = notificationResult
+                notificationResult = null
+                pending?.success(null)
+                return true
+            }
+            else -> return false
         }
-        return true
     }
 
     private fun isGranted(
@@ -364,20 +377,20 @@ class UsbCapturePlugin :
         return index < grantResults.size && grantResults[index] == PackageManager.PERMISSION_GRANTED
     }
 
+    private fun hasCapturePermissions(): Boolean {
+        val ctx = activity ?: appContext ?: return false
+        return CapturePermissions.captureRuntime().all {
+            ContextCompat.checkSelfPermission(ctx, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
     private fun requestPermissions(result: MethodChannel.Result) {
         val act = activity
         if (act == null) {
             result.error("permissionDenied", "no activity", null)
             return
         }
-        val needed = mutableListOf(
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO,
-        )
-        if (Build.VERSION.SDK_INT >= 33) {
-            needed.add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        val missing = needed.filter {
+        val missing = CapturePermissions.captureRuntime().filter {
             ContextCompat.checkSelfPermission(act, it) != PackageManager.PERMISSION_GRANTED
         }
         if (missing.isEmpty()) {
@@ -386,6 +399,24 @@ class UsbCapturePlugin :
         }
         permissionResult = result
         ActivityCompat.requestPermissions(act, missing.toTypedArray(), PERMISSION_REQUEST)
+    }
+
+    private fun requestNotificationPermission(result: MethodChannel.Result) {
+        val act = activity
+        val needed = CapturePermissions.notificationRuntime()
+        if (act == null || needed.isEmpty()) {
+            result.success(null)
+            return
+        }
+        val missing = needed.filter {
+            ContextCompat.checkSelfPermission(act, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isEmpty()) {
+            result.success(null)
+            return
+        }
+        notificationResult = result
+        ActivityCompat.requestPermissions(act, missing.toTypedArray(), NOTIFICATION_REQUEST)
     }
 
     private fun openBatterySettings() {
@@ -481,6 +512,7 @@ class UsbCapturePlugin :
 
     companion object {
         private const val PERMISSION_REQUEST = 2401
+        private const val NOTIFICATION_REQUEST = 2402
         private const val PICK_FOLDER = 2403
         private const val LibraryCopyShareFailed = "shareUnavailable"
     }

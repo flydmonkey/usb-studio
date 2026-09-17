@@ -43,6 +43,14 @@ class UsbCapture {
     return UsbCapturePlatform.instance.requestPermissions();
   }
 
+  Future<bool> hasCapturePermissions() {
+    return UsbCapturePlatform.instance.hasCapturePermissions();
+  }
+
+  Future<void> requestNotificationPermission() {
+    return UsbCapturePlatform.instance.requestNotificationPermission();
+  }
+
   Future<List<CaptureDevice>> listDevices() {
     return UsbCapturePlatform.instance.listDevices();
   }

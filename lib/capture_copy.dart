@@ -105,6 +105,19 @@ String qualityLabel(AppLocalizations l10n, QualityPreset preset) {
   }
 }
 
+String streamBitrateLabel(AppLocalizations l10n, StreamBitrate bitrate) {
+  switch (bitrate) {
+    case StreamBitrate.mbps1:
+      return l10n.streamMbps1;
+    case StreamBitrate.mbps2:
+      return l10n.streamMbps2;
+    case StreamBitrate.mbps4:
+      return l10n.streamMbps4;
+    case StreamBitrate.mbps6:
+      return l10n.streamMbps6;
+  }
+}
+
 String saveLocationLabel(
   AppLocalizations l10n,
   String kind, {

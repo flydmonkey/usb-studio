@@ -54,3 +54,30 @@ enum QualityPreset {
     }
   }
 }
+
+enum StreamBitrate {
+  mbps1,
+  mbps2,
+  mbps4,
+  mbps6;
+
+  static StreamBitrate parse(String? raw) {
+    return StreamBitrate.values.firstWhere(
+      (value) => value.name == raw,
+      orElse: () => StreamBitrate.mbps2,
+    );
+  }
+
+  int get baseBitrate {
+    switch (this) {
+      case StreamBitrate.mbps1:
+        return 1000000;
+      case StreamBitrate.mbps2:
+        return 2000000;
+      case StreamBitrate.mbps4:
+        return 4000000;
+      case StreamBitrate.mbps6:
+        return 6000000;
+    }
+  }
+}

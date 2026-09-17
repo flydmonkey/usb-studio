@@ -23,6 +23,44 @@
     h1 { font-size: 1.2rem; margin: 0 0 4px; }
     .hint { color: #888; font-size: 0.85rem; margin: 0 0 16px; }
     h2 { font-size: 0.95rem; color: #bbb; margin: 20px 0 8px; }
+    .player-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 0 8px;
+    }
+    .player-bar h2 { margin: 0; }
+    .live-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #ccc;
+      font-size: 0.9rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .live-toggle input {
+      width: 18px;
+      height: 18px;
+      margin: 0;
+      accent-color: #4aa3ff;
+    }
+    .fs-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 3;
+      border: 1px solid #555;
+      background: rgba(0, 0, 0, 0.65);
+      color: #eee;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .fs-btn:hover { border-color: #4aa3ff; }
     .player {
       position: relative;
       width: 100%;
@@ -31,12 +69,30 @@
       border-radius: 12px;
       overflow: hidden;
     }
-    .player video {
+    .player video,
+    .player img {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       object-fit: contain;
-      display: block;
       background: #000;
+    }
+    .player img.hidden,
+    .player video.hidden { display: none; }
+    .player:fullscreen,
+    .player:-webkit-full-screen,
+    .player.page-full {
+      width: 100vw;
+      height: 100vh;
+      max-width: none;
+      aspect-ratio: auto;
+      border-radius: 0;
+    }
+    .player.page-full {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
     }
     .live-status {
       position: absolute;
@@ -47,6 +103,8 @@
       background: rgba(0, 0, 0, 0.55);
       color: #ccc;
       font-size: 0.95rem;
+      text-align: center;
+      padding: 12px;
     }
     .live-status.hidden { display: none; }
     .list {
@@ -86,28 +144,31 @@
     }
     .empty, .error { color: #888; margin: 8px 0; }
     .error { color: #f88; }
-    #vod-wrap { display: none; margin-top: 12px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1 id="page-title">USB Studio · LAN playback</h1>
-    <p class="hint" id="page-hint">Open this HTTP address on the same Wi-Fi. HTTPS is not required. Live starts muted; tap the player to unmute.</p>
+    <p class="hint" id="page-hint">Open this HTTP address on the same Wi-Fi. HTTPS is not required. Live is silent video only.</p>
 
-    <h2 id="live-heading">Live</h2>
-    <div class="player">
-      <video id="live" controls autoplay muted playsinline></video>
-      <div class="live-status" id="live-status">Waiting for capture card</div>
+    <div class="player-bar">
+      <h2 id="player-heading">Player</h2>
+      <label class="live-toggle">
+        <input type="checkbox" id="live-toggle">
+        <span id="live-toggle-label">Live preview</span>
+      </label>
+    </div>
+    <div class="player" id="player">
+      <img id="live" class="hidden" alt="">
+      <video id="vod" class="hidden" playsinline></video>
+      <div class="live-status" id="live-status">Turn on live preview or pick a recording</div>
+      <button type="button" class="fs-btn" id="fs-btn">Fullscreen</button>
     </div>
 
     <h2 id="recordings-heading">Recordings</h2>
     <div id="recordings"><p class="empty" id="recordings-loading">Loading…</p></div>
-    <div class="player" id="vod-wrap">
-      <video id="vod" controls playsinline></video>
-    </div>
   </div>
 
-  <script src="/hls.min.js"></script>
   <script>
     window.LAN_I18N = window.LAN_I18N || {};
     (function () {
@@ -120,118 +181,188 @@
       };
       setText('page-title', i18n.title);
       setText('page-hint', i18n.hint);
-      setText('live-heading', i18n.live);
-      setText('live-status', i18n.waitingCard);
+      setText('player-heading', i18n.player);
+      setText('live-toggle-label', i18n.livePreview);
+      setText('fs-btn', i18n.fullscreen);
+      setText('live-status', i18n.chooseSource);
       setText('recordings-heading', i18n.recordings);
       setText('recordings-loading', i18n.loading);
 
-      var liveVideo = document.getElementById('live');
+      var liveToggle = document.getElementById('live-toggle');
+      var fsBtn = document.getElementById('fs-btn');
+      var player = document.getElementById('player');
+      var liveImg = document.getElementById('live');
       var liveStatus = document.getElementById('live-status');
       var container = document.getElementById('recordings');
-      var vodWrap = document.getElementById('vod-wrap');
       var vodVideo = document.getElementById('vod');
-      var liveHls = null;
-      var livePoll = null;
+      var liveOn = false;
+      var liveBound = false;
+      var liveRetry = null;
+      var vodActive = false;
 
-      function showWaiting(text) {
-        liveStatus.textContent = text || i18n.waitingCard || 'Waiting for capture card';
+      function showOverlay(text) {
+        liveStatus.textContent = text || i18n.chooseSource || 'Turn on live preview or pick a recording';
         liveStatus.classList.remove('hidden');
       }
 
-      function hideWaiting() {
+      function hideOverlay() {
         liveStatus.classList.add('hidden');
       }
 
-      function playlistReady(text) {
-        var matches = text.match(/#EXTINF/g);
-        return matches && matches.length >= 1;
+      function stopLiveStream() {
+        liveBound = false;
+        liveImg.removeAttribute('src');
+        liveImg.classList.add('hidden');
       }
 
-      function destroyLiveHls() {
-        if (liveHls) {
-          liveHls.destroy();
-          liveHls = null;
+      function stopLivePolling() {
+        if (liveRetry) {
+          clearInterval(liveRetry);
+          liveRetry = null;
         }
       }
 
       function attachLive() {
-        var src = '/live.m3u8';
-        destroyLiveHls();
-        if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-          liveHls = new Hls({
-            enableWorker: true,
-            lowLatencyMode: false,
-            liveSyncDurationCount: 3,
-            liveMaxLatencyDurationCount: 6,
-            manifestLoadingMaxRetry: 30,
-            manifestLoadingRetryDelay: 1500,
-            levelLoadingMaxRetry: 30,
-            fragLoadingMaxRetry: 8,
-            maxBufferHole: 2.0
-          });
-          liveHls.loadSource(src);
-          liveHls.attachMedia(liveVideo);
-          liveHls.on(Hls.Events.MANIFEST_PARSED, function () {
-            hideWaiting();
-            liveVideo.play().catch(function () {});
-          });
-          liveHls.on(Hls.Events.ERROR, function (_event, data) {
-            if (!data.fatal) return;
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-              liveHls.startLoad();
-              return;
-            }
-            if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-              liveHls.recoverMediaError();
-              return;
-            }
-            showWaiting(i18n.waitingCard);
-            destroyLiveHls();
-            scheduleLivePoll();
-          });
+        if (liveBound && liveImg.getAttribute('src')) return;
+        liveBound = true;
+        liveImg.classList.remove('hidden');
+        liveImg.src = '/live.mjpeg?t=' + Date.now();
+      }
+
+      function stopVod() {
+        vodActive = false;
+        vodVideo.pause();
+        vodVideo.removeAttribute('src');
+        vodVideo.removeAttribute('controls');
+        vodVideo.load();
+        vodVideo.classList.add('hidden');
+      }
+
+      function applyLiveStatus(st) {
+        if (!liveOn) return;
+        if (!st) return;
+        if (st.paused) {
+          stopLiveStream();
+          showOverlay(i18n.pausedStream);
           return;
         }
-        if (liveVideo.canPlayType('application/vnd.apple.mpegurl')) {
-          liveVideo.src = src;
-          liveVideo.play().catch(function () {});
+        if (!st.hasCard) {
+          stopLiveStream();
+          showOverlay(i18n.waitingCard);
           return;
         }
-        showWaiting(i18n.liveUnsupported);
+        attachLive();
+        if (st.ready) hideOverlay();
+        else showOverlay(i18n.waitingCard);
       }
 
       function pollLiveOnce() {
-        return fetch('/live.m3u8', { cache: 'no-store' })
-          .then(function (res) { return res.text(); })
-          .then(function (text) {
-            if (playlistReady(text)) {
-              hideWaiting();
-              attachLive();
-              return true;
-            }
-            showWaiting(i18n.waitingCard);
-            return false;
+        if (!liveOn) return Promise.resolve(false);
+        return fetch('/api/live', { cache: 'no-store' })
+          .then(function (res) { return res.json(); })
+          .then(function (st) {
+            applyLiveStatus(st);
+            return !!(st && st.ready);
           })
           .catch(function () {
-            showWaiting(i18n.waitingCard);
+            if (liveOn) showOverlay(i18n.waitingCard);
             return false;
           });
       }
 
-      function scheduleLivePoll() {
-        if (livePoll) return;
-        livePoll = setInterval(function () {
-          pollLiveOnce().then(function (ready) {
-            if (ready) {
-              clearInterval(livePoll);
-              livePoll = null;
-            }
-          });
-        }, 2000);
+      function setLiveOn(on) {
+        liveOn = !!on;
+        liveToggle.checked = liveOn;
+        if (!liveOn) {
+          stopLivePolling();
+          stopLiveStream();
+          if (vodActive) {
+            hideOverlay();
+          } else {
+            showOverlay(i18n.chooseSource);
+          }
+          return;
+        }
+        stopVod();
+        document.querySelectorAll('.item.active').forEach(function (el) {
+          el.classList.remove('active');
+        });
+        showOverlay(i18n.waitingCard);
+        pollLiveOnce();
+        if (!liveRetry) liveRetry = setInterval(pollLiveOnce, 2000);
       }
 
-      liveVideo.addEventListener('playing', hideWaiting);
-      pollLiveOnce().then(function (ready) {
-        if (!ready) scheduleLivePoll();
+      liveToggle.addEventListener('change', function () {
+        setLiveOn(liveToggle.checked);
+      });
+
+      function fullscreenElement() {
+        return document.fullscreenElement || document.webkitFullscreenElement || null;
+      }
+
+      function isPageFull() {
+        return player.classList.contains('page-full');
+      }
+
+      function isFull() {
+        return fullscreenElement() === player || isPageFull();
+      }
+
+      function updateFsLabel() {
+        fsBtn.textContent = isFull()
+          ? (i18n.exitFullscreen || 'Exit fullscreen')
+          : (i18n.fullscreen || 'Fullscreen');
+      }
+
+      function enterFull() {
+        var req = player.requestFullscreen || player.webkitRequestFullscreen;
+        if (req) {
+          Promise.resolve(req.call(player)).catch(function () {
+            player.classList.add('page-full');
+            updateFsLabel();
+          });
+          return;
+        }
+        player.classList.add('page-full');
+        updateFsLabel();
+      }
+
+      function exitFull() {
+        var el = fullscreenElement();
+        if (el) {
+          var exit = document.exitFullscreen || document.webkitExitFullscreen;
+          if (exit) exit.call(document);
+        }
+        player.classList.remove('page-full');
+        updateFsLabel();
+      }
+
+      function toggleFull() {
+        if (isFull()) exitFull();
+        else enterFull();
+      }
+
+      fsBtn.addEventListener('click', function (event) {
+        event.stopPropagation();
+        toggleFull();
+      });
+      fsBtn.addEventListener('dblclick', function (event) {
+        event.stopPropagation();
+      });
+      player.addEventListener('dblclick', toggleFull);
+      document.addEventListener('fullscreenchange', updateFsLabel);
+      document.addEventListener('webkitfullscreenchange', updateFsLabel);
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && isPageFull()) {
+          exitFull();
+        }
+      });
+      liveImg.addEventListener('load', function () {
+        if (liveOn) hideOverlay();
+      });
+      liveImg.addEventListener('error', function () {
+        liveBound = false;
+        if (liveOn) showOverlay(i18n.waitingCard);
       });
 
       function formatBytes(bytes) {
@@ -268,10 +399,13 @@
                 el.classList.remove('active');
               });
               btn.classList.add('active');
-              vodWrap.style.display = 'block';
+              vodActive = true;
+              setLiveOn(false);
+              vodVideo.classList.remove('hidden');
+              vodVideo.setAttribute('controls', '');
               vodVideo.src = '/vod/' + encodeURIComponent(id);
+              hideOverlay();
               vodVideo.play().catch(function () {});
-              vodWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             });
             list.appendChild(btn);
           });

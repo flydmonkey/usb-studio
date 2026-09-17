@@ -41,7 +41,9 @@ private class PreviewPlatformView(
                     surface: SurfaceTexture,
                     width: Int,
                     height: Int,
-                ) {}
+                ) {
+                    engineProvider()?.attachPreview(textureView)
+                }
 
                 override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
                     engineProvider()?.detachPreview()

@@ -131,6 +131,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get streamKeyHint => 'Or paste full URL';
 
   @override
+  String get streamBitrate => 'Bitrate';
+
+  @override
+  String get streamMbps1 => '1 Mbps';
+
+  @override
+  String get streamMbps2 => '2 Mbps';
+
+  @override
+  String get streamMbps4 => '4 Mbps';
+
+  @override
+  String get streamMbps6 => '6 Mbps';
+
+  @override
   String get lanPlayback => 'LAN playback';
 
   @override

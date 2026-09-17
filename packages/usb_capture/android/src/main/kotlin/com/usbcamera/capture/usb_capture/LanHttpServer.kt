@@ -12,7 +12,8 @@ class LanHttpServer(
     private val context: Context,
     private val listRecordings: () -> List<Map<String, Any?>>,
     private val openRecording: (String) -> Pair<ParcelFileDescriptor, Long>?,
-    private val hlsWindow: () -> HlsWindow?,
+    private val mjpegHub: () -> MjpegHub?,
+    private val liveStatus: () -> JSONObject,
 ) {
     private var impl: ServerImpl? = null
     private var boundPort = 0
@@ -50,11 +51,9 @@ class LanHttpServer(
             val path = session.uri.substringBefore('?')
             return when {
                 path == "/" || path == "/index.html" -> serveIndex()
-                path == "/hls.min.js" -> serveAsset("lan_http/hls.min.js", "application/javascript")
                 path == "/api/recordings" -> serveRecordings()
                 path == "/api/live" -> serveLiveStatus()
-                path == "/live.m3u8" -> serveLivePlaylist()
-                path.startsWith("/live/") -> serveLiveSegment(path.removePrefix("/live/"))
+                path == "/live.mjpeg" -> serveLiveMjpeg()
                 path.startsWith("/vod/") -> serveVod(path.removePrefix("/vod/"), session)
                 else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "")
             }.also { addCors(it) }
@@ -76,10 +75,17 @@ class LanHttpServer(
                     .put("title", localized.getString(R.string.lan_page_title))
                     .put("hint", localized.getString(R.string.lan_page_hint))
                     .put("live", localized.getString(R.string.lan_live))
+                    .put("player", localized.getString(R.string.lan_player))
+                    .put("livePreview", localized.getString(R.string.lan_live_preview))
+                    .put("fullscreen", localized.getString(R.string.lan_fullscreen))
+                    .put("exitFullscreen", localized.getString(R.string.lan_exit_fullscreen))
+                    .put("chooseSource", localized.getString(R.string.lan_choose_source))
                     .put("waitingCard", localized.getString(R.string.lan_waiting_card))
                     .put("recordings", localized.getString(R.string.lan_recordings))
                     .put("loading", localized.getString(R.string.lan_loading))
                     .put("liveUnsupported", localized.getString(R.string.lan_live_unsupported))
+                    .put("needMjpeg", localized.getString(R.string.lan_need_mjpeg))
+                    .put("pausedStream", localized.getString(R.string.lan_paused_stream))
                     .put("loadFailed", localized.getString(R.string.lan_load_failed))
                     .put("empty", localized.getString(R.string.lan_empty))
                     .put("unnamed", localized.getString(R.string.lan_unnamed))
@@ -93,17 +99,6 @@ class LanHttpServer(
                     body.inputStream(),
                     body.size.toLong(),
                 )
-            } catch (_: Exception) {
-                newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "")
-            }
-        }
-
-        private fun serveAsset(assetPath: String, mime: String): Response {
-            return try {
-                context.assets.open(assetPath).use { input ->
-                    val body = input.readBytes()
-                    newFixedLengthResponse(Response.Status.OK, mime, body.inputStream(), body.size.toLong())
-                }
             } catch (_: Exception) {
                 newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "")
             }
@@ -134,10 +129,7 @@ class LanHttpServer(
         }
 
         private fun serveLiveStatus(): Response {
-            val window = hlsWindow()
-            val body = JSONObject()
-                .put("segments", window?.segmentCount() ?: 0)
-                .toString()
+            val body = liveStatus().toString()
             return newFixedLengthResponse(
                 Response.Status.OK,
                 "application/json; charset=utf-8",
@@ -147,26 +139,19 @@ class LanHttpServer(
             }
         }
 
-        private fun serveLivePlaylist(): Response {
-            val body = hlsWindow()?.playlist(base = "/live/") ?: HlsWindow().playlist(base = "/live/")
-            return newFixedLengthResponse(
-                Response.Status.OK,
-                "application/vnd.apple.mpegurl",
-                body,
-            ).apply {
-                addHeader("Cache-Control", "no-cache")
-            }
-        }
-
-        private fun serveLiveSegment(name: String): Response {
-            val data = hlsWindow()?.segment(name)
+        private fun serveLiveMjpeg(): Response {
+            val hub = mjpegHub()
                 ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "")
-            return newFixedLengthResponse(
+            val mime = "multipart/x-mixed-replace; boundary=${MjpegPart.BOUNDARY}"
+            return newChunkedResponse(
                 Response.Status.OK,
-                "video/mp2t",
-                data.inputStream(),
-                data.size.toLong(),
-            )
+                mime,
+                MjpegMultipartStream(hub),
+            ).apply {
+                addHeader("Cache-Control", "no-cache, no-store, must-revalidate")
+                addHeader("Pragma", "no-cache")
+                addHeader("Connection", "close")
+            }
         }
 
         private fun serveVod(encodedId: String, session: IHTTPSession): Response {

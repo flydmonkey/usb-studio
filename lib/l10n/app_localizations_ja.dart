@@ -131,6 +131,21 @@ class AppLocalizationsJa extends AppLocalizations {
   String get streamKeyHint => '完全なURLを上に貼っても可';
 
   @override
+  String get streamBitrate => '配信ビットレート';
+
+  @override
+  String get streamMbps1 => '1 Mbps';
+
+  @override
+  String get streamMbps2 => '2 Mbps';
+
+  @override
+  String get streamMbps4 => '4 Mbps';
+
+  @override
+  String get streamMbps6 => '6 Mbps';
+
+  @override
   String get lanPlayback => 'LAN再生';
 
   @override

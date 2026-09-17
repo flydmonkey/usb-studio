@@ -19,6 +19,25 @@ internal class EncoderLimitsTest {
     }
 
     @Test
+    fun streamBitrateDefaultsToTwoMbpsAndScalesWithResolution() {
+        assertEquals("mbps2", EncoderLimits.parseStreamBitrate(null))
+        assertEquals("mbps2", EncoderLimits.parseStreamBitrate("nope"))
+        assertEquals("mbps1", EncoderLimits.parseStreamBitrate("mbps1"))
+        assertEquals(2_000_000, EncoderLimits.streamBaseBitrate("mbps2"))
+        assertEquals(1_000_000, EncoderLimits.streamBaseBitrate("mbps1"))
+        assertEquals(4_000_000, EncoderLimits.streamBaseBitrate("mbps4"))
+        assertEquals(6_000_000, EncoderLimits.streamBaseBitrate("mbps6"))
+        assertEquals(
+            2_000_000,
+            EncoderLimits.scaledBitrate(2_000_000, 1920, 1080),
+        )
+        assertEquals(
+            500_000,
+            EncoderLimits.scaledBitrate(2_000_000, 960, 540),
+        )
+    }
+
+    @Test
     fun treatsCodecNoMemoryAsLiveEncodeFailure() {
         assertTrue(EncoderLimits.isLiveEncodeFailure("Error 0xfffffff4"))
         assertTrue(EncoderLimits.isLiveEncodeFailure("Codec reported err 0xfffffff4/NO_MEMORY"))

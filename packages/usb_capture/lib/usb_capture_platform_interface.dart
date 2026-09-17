@@ -103,6 +103,10 @@ abstract class UsbCapturePlatform extends PlatformInterface {
     throw UnimplementedError('setRecordingQuality() has not been implemented.');
   }
 
+  Future<void> setStreamBitrate(String preset) {
+    throw UnimplementedError('setStreamBitrate() has not been implemented.');
+  }
+
   Future<void> startRecording({int segmentMinutes = 10}) {
     throw UnimplementedError('startRecording() has not been implemented.');
   }

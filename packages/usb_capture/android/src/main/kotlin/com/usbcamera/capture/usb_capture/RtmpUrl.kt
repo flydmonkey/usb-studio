@@ -2,13 +2,13 @@ package com.usbcamera.capture.usb_capture
 
 internal object RtmpUrl {
     fun join(server: String, key: String): String? {
-        val host = server.trim()
-        val streamKey = key.trim()
-        if (host.isEmpty()) return null
-        val scheme = host.lowercase()
-        if (!scheme.startsWith("rtmp://") && !scheme.startsWith("rtmps://")) {
-            return null
+        var host = server.trim()
+        var streamKey = key.trim()
+        if (host.isEmpty() && isRtmp(streamKey)) {
+            host = streamKey
+            streamKey = ""
         }
+        if (host.isEmpty() || !isRtmp(host)) return null
         if (streamKey.isEmpty()) {
             return if (hasAppPath(host)) host else null
         }
@@ -27,6 +27,11 @@ internal object RtmpUrl {
         val rest = trimmed.substringAfter("://")
         if (!rest.contains('/')) return null
         return trimmed
+    }
+
+    private fun isRtmp(value: String): Boolean {
+        val scheme = value.lowercase()
+        return scheme.startsWith("rtmp://") || scheme.startsWith("rtmps://")
     }
 
     private fun hasAppPath(host: String): Boolean {

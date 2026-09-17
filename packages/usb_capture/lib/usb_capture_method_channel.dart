@@ -138,6 +138,11 @@ class MethodChannelUsbCapture extends UsbCapturePlatform {
   }
 
   @override
+  Future<void> setStreamBitrate(String preset) async {
+    await _invoke('setStreamBitrate', {'preset': preset});
+  }
+
+  @override
   Future<void> startRecording({int segmentMinutes = 10}) async {
     await _invoke('startRecording', {'segmentMinutes': segmentMinutes});
   }

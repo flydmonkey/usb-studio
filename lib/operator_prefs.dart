@@ -19,6 +19,7 @@ class OperatorPrefs {
     this.rtmpKey = '',
     this.httpLanEnabled = false,
     this.localeMode = LocaleMode.system,
+    this.streamBitrate = StreamBitrate.mbps2,
   });
 
   final int segmentMinutes;
@@ -35,6 +36,7 @@ class OperatorPrefs {
   final String rtmpKey;
   final bool httpLanEnabled;
   final LocaleMode localeMode;
+  final StreamBitrate streamBitrate;
 
   static const _segmentKey = 'operator.segmentMinutes';
   static const _autoRecordKey = 'operator.autoRecord';
@@ -50,6 +52,7 @@ class OperatorPrefs {
   static const _rtmpKeyKey = 'operator.rtmpKey';
   static const _httpLanEnabledKey = 'operator.httpLanEnabled';
   static const _localeModeKey = 'operator.localeMode';
+  static const _streamBitrateKey = 'operator.streamBitrate';
   static const _keep = Object();
 
   OperatorPrefs copyWith({
@@ -67,6 +70,7 @@ class OperatorPrefs {
     String? rtmpKey,
     bool? httpLanEnabled,
     LocaleMode? localeMode,
+    StreamBitrate? streamBitrate,
   }) {
     return OperatorPrefs(
       segmentMinutes: segmentMinutes ?? this.segmentMinutes,
@@ -85,6 +89,7 @@ class OperatorPrefs {
       rtmpKey: rtmpKey ?? this.rtmpKey,
       httpLanEnabled: httpLanEnabled ?? this.httpLanEnabled,
       localeMode: localeMode ?? this.localeMode,
+      streamBitrate: streamBitrate ?? this.streamBitrate,
     );
   }
 
@@ -107,6 +112,7 @@ class OperatorPrefs {
       rtmpKey: stored.getString(_rtmpKeyKey) ?? '',
       httpLanEnabled: stored.getBool(_httpLanEnabledKey) ?? false,
       localeMode: LocaleMode.fromStored(stored.getString(_localeModeKey)),
+      streamBitrate: StreamBitrate.parse(stored.getString(_streamBitrateKey)),
     );
   }
 
@@ -136,6 +142,7 @@ class OperatorPrefs {
     await stored.setString(_rtmpKeyKey, rtmpKey);
     await stored.setBool(_httpLanEnabledKey, httpLanEnabled);
     await stored.setString(_localeModeKey, localeMode.storageKey);
+    await stored.setString(_streamBitrateKey, streamBitrate.name);
     return this;
   }
 }

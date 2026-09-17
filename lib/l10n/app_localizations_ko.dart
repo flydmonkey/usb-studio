@@ -131,6 +131,21 @@ class AppLocalizationsKo extends AppLocalizations {
   String get streamKeyHint => '전체 URL을 위에 붙여도 됩니다';
 
   @override
+  String get streamBitrate => '송출 비트레이트';
+
+  @override
+  String get streamMbps1 => '1 Mbps';
+
+  @override
+  String get streamMbps2 => '2 Mbps';
+
+  @override
+  String get streamMbps4 => '4 Mbps';
+
+  @override
+  String get streamMbps6 => '6 Mbps';
+
+  @override
   String get lanPlayback => 'LAN 재생';
 
   @override

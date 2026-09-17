@@ -1,7 +1,7 @@
 # lan-http-playback Specification
 
 ## Purpose
-Let the operator serve live HLS and saved recordings over LAN HTTP so another device on the same Wi-Fi can watch in a browser.
+Let the operator serve silent live MJPEG preview and saved recordings over LAN HTTP so another device on the same Wi-Fi can watch in a browser.
 
 ## Requirements
 ### Requirement: Start and stop LAN HTTP playback from settings
@@ -30,21 +30,30 @@ When 局域网播放 is enabled, the app SHALL display the copyable base URL onl
 - **WHEN** the preferred port is occupied and the server binds to the next free port
 - **THEN** the displayed URL SHALL reflect the actual port
 
-### Requirement: HTTP routes for home page, live HLS, and VOD
+### Requirement: HTTP routes for home page, live MJPEG, and VOD
 The server SHALL bind `0.0.0.0`, prefer port `8080`, and increment the port if occupied. It SHALL serve:
 
 | Path | Behavior |
 | --- | --- |
-| `GET /` | HTML page with live player (hls.js) and recording library list |
+| `GET /` | HTML page with one shared player, a live-preview switch (default off), and recording library list |
 | `GET /api/recordings` | JSON array `[{id,name,bytes}]` for the home page library list (same ids as in-app library) |
-| `GET /live.m3u8` and segment files | Live HLS (H.264 + AAC). When no capture card is open, return a readable failure state so the page shows waiting for capture card |
+| `GET /api/live` | JSON `{hasCard,mjpeg,paused,ready}` for live overlay state |
+| `GET /live.mjpeg` | Live MJPEG (`multipart/x-mixed-replace`) of the latest UVC JPEG. When no JPEG is available the connection MAY wait. The page SHALL show waiting, need-MJPEG, or paused-while-streaming as appropriate |
 | `GET /vod/<id>` | Saved MP4 with `video/mp4` and HTTP Range support for progressive playback |
 
-The recording list SHALL use the same source and ids as the in-app library (album / Movies / Downloads / custom folder).
+The recording list SHALL use the same source and ids as the in-app library (album / Movies / Downloads / custom folder). Live SHALL NOT include audio.
 
 #### Scenario: Browser opens home without card
 - **WHEN** a browser on the same Wi-Fi opens the displayed URL and no capture card session is open
-- **THEN** the page SHALL fetch `/api/recordings` and list saved recordings, and the live area SHALL indicate waiting for the capture card
+- **THEN** the page SHALL fetch `/api/recordings` and list saved recordings, live preview SHALL stay off, and the shared player SHALL wait until the operator turns live on or picks a recording
+
+#### Scenario: Live preview starts only when switched on
+- **WHEN** the operator turns on 实时预览
+- **THEN** the shared player SHALL start silent live MJPEG and SHALL stop any recording currently playing in that player
+
+#### Scenario: Recording uses the same player
+- **WHEN** the operator picks a recording from the list
+- **THEN** the shared player SHALL play that MP4, and live preview SHALL turn off if it was on
 
 #### Scenario: Recordings API returns library JSON
 - **WHEN** a client requests `GET /api/recordings`
@@ -58,26 +67,30 @@ The recording list SHALL use the same source and ids as the in-app library (albu
 - **WHEN** a client requests `GET /vod/<id>` for a recording that no longer exists on disk
 - **THEN** the server SHALL return `404` without affecting other list entries
 
-### Requirement: Live HLS when capture card is connected
-When a capture session is open and 局域网播放 is enabled, the server SHALL publish live HLS with H.264 video and AAC audio, with end-to-end latency on the order of a few seconds. If the USB capture card detaches or the session ends, live HLS SHALL stop updating while VOD routes remain available.
+### Requirement: Live MJPEG when capture card is connected
+When a capture session is open, the capture format is MJPEG, and 局域网播放 is enabled, the server SHALL publish silent live MJPEG by copying JPEG frames from the UVC callback (no H.264 transcode). If the USB capture card detaches or the session ends, live MJPEG SHALL stop updating while VOD routes remain available. If the current format is not MJPEG, the page SHALL tell the operator to switch to MJPEG instead of showing a broken live picture.
 
 #### Scenario: Live appears after card connects
-- **WHEN** 局域网播放 is already on, a browser has the home page open, and the operator opens a healthy capture session
-- **THEN** the live player SHALL begin showing video and audio within a few seconds
+- **WHEN** 局域网播放 is already on, a browser has the home page open with 实时预览 switched on, and the operator opens a healthy MJPEG capture session
+- **THEN** the shared player SHALL begin showing silent live video
+
+#### Scenario: Non-MJPEG format is not live
+- **WHEN** the capture session is open on a non-MJPEG format
+- **THEN** the live area SHALL explain that MJPEG is required
 
 #### Scenario: Card unplug stops live only
 - **WHEN** the capture card detaches while 局域网播放 is on
-- **THEN** live HLS SHALL stop but `/` and `/vod/<id>` SHALL continue to work for existing recordings
+- **THEN** live MJPEG SHALL stop but `/` and `/vod/<id>` SHALL continue to work for existing recordings
 
 ### Requirement: Coexist with local recording and RTMP ingest
-Starting or stopping 局域网播放 MUST NOT stop local segmented recording or RTMP ingest, and starting recording or ingest MUST NOT stop the HTTP server. Live encoding for HLS SHALL share the same H.264/AAC encoder path as RTMP when ingest is active (tee encoded frames to HLS); when ingest is idle but a capture session is open, the app MAY run an HLS-only encoder session. Changing capture format or recording quality while live LAN encoding is active SHALL be rejected with a readable error, consistent with streaming in progress.
+Starting or stopping 局域网播放 MUST NOT stop local segmented recording or RTMP ingest, and starting recording or ingest MUST NOT stop the HTTP server. LAN-only live SHALL NOT start a MediaCodec session. When RTMP ingest is active, the UVC frame callback SHALL switch to NV21 for ingest and LAN MJPEG SHALL pause until ingest stops. Changing capture format while LAN MJPEG is publishing SHALL be rejected with a readable error, consistent with streaming in progress. Recording quality MAY still be changed while LAN MJPEG is publishing if recording and ingest are idle.
 
 #### Scenario: HTTP with recording and RTMP
 - **WHEN** 局域网播放, local segmented recording, and RTMP ingest are all active
-- **THEN** each SHALL continue until the operator stops them independently
+- **THEN** each SHALL continue until the operator stops them independently, and LAN live SHALL pause for the duration of ingest
 
-#### Scenario: Format locked during live LAN encode
-- **WHEN** live LAN encoding is active and the operator tries to change format or quality
+#### Scenario: Format locked during live LAN MJPEG
+- **WHEN** live LAN MJPEG is publishing and the operator tries to change format
 - **THEN** the app MUST keep the current format and explain that streaming is in progress
 
 ### Requirement: Foreground service while LAN playback is on

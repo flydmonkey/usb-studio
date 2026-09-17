@@ -331,6 +331,36 @@ abstract class AppLocalizations {
   /// **'Or paste full URL'**
   String get streamKeyHint;
 
+  /// No description provided for @streamBitrate.
+  ///
+  /// In en, this message translates to:
+  /// **'Bitrate'**
+  String get streamBitrate;
+
+  /// No description provided for @streamMbps1.
+  ///
+  /// In en, this message translates to:
+  /// **'1 Mbps'**
+  String get streamMbps1;
+
+  /// No description provided for @streamMbps2.
+  ///
+  /// In en, this message translates to:
+  /// **'2 Mbps'**
+  String get streamMbps2;
+
+  /// No description provided for @streamMbps4.
+  ///
+  /// In en, this message translates to:
+  /// **'4 Mbps'**
+  String get streamMbps4;
+
+  /// No description provided for @streamMbps6.
+  ///
+  /// In en, this message translates to:
+  /// **'6 Mbps'**
+  String get streamMbps6;
+
   /// No description provided for @lanPlayback.
   ///
   /// In en, this message translates to:

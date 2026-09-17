@@ -35,7 +35,7 @@ If you start streaming, USB Studio sends the live capture-card audio/video to th
 
 ### LAN playback (optional)
 
-If you enable LAN playback, the app starts a local **unencrypted HTTP** server on your Wi-Fi/LAN so other devices on the same network can watch live HLS or saved recordings. Anyone on that network who knows the URL can open it. This traffic is not sent to the developer and is not HTTPS.
+If you enable LAN playback, the app starts a local **unencrypted HTTP** server on your Wi-Fi/LAN so other devices on the same network can watch silent live preview or saved recordings. Anyone on that network who knows the URL can open it. This traffic is not sent to the developer and is not HTTPS.
 
 ### Notifications and battery
 
@@ -83,7 +83,7 @@ Android 9 及以上系统要求应用具备**相机**权限后，才能访问 US
 
 ### 局域网播放（可选）
 
-若打开局域网播放，应用会在当前局域网启动**未加密的 HTTP** 服务，同一网络上的其他设备可以用浏览器看现场 HLS 或已录成片。知道地址的人都可以打开。流量不会发到开发者，也不使用 HTTPS。
+若打开局域网播放，应用会在当前局域网启动**未加密的 HTTP** 服务，同一网络上的其他设备可以用浏览器看无声现场画面或已录成片。知道地址的人都可以打开。流量不会发到开发者，也不使用 HTTPS。
 
 ### 通知和电池
 

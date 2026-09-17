@@ -411,6 +411,13 @@ void main() {
       expect(QualityPreset.parse('high'), QualityPreset.high);
       expect(QualityPreset.parse('tiny'), QualityPreset.tiny);
       expect(QualityPreset.parse('small'), QualityPreset.small);
+      expect(StreamBitrate.parse(null), StreamBitrate.mbps2);
+      expect(StreamBitrate.parse('nope'), StreamBitrate.mbps2);
+      expect(StreamBitrate.parse('mbps4'), StreamBitrate.mbps4);
+      expect(StreamBitrate.mbps1.baseBitrate, 1000000);
+      expect(StreamBitrate.mbps2.baseBitrate, 2000000);
+      expect(StreamBitrate.mbps4.baseBitrate, 4000000);
+      expect(StreamBitrate.mbps6.baseBitrate, 6000000);
       final event = CaptureEvent.fromMap({
         'type': 'signal',
         'width': 1280,
@@ -493,6 +500,20 @@ void main() {
         'rtmp://live.example/live/stream',
       );
       expect(StreamUrl.join(server: 'rtmp://live.example', key: ''), isNull);
+      expect(
+        StreamUrl.join(
+          server: '',
+          key: 'rtmp://live.example/live/stream',
+        ),
+        'rtmp://live.example/live/stream',
+      );
+      expect(
+        StreamUrl.join(
+          server: '  ',
+          key: 'rtmps://live.example/app/stream',
+        ),
+        'rtmps://live.example/app/stream',
+      );
     });
 
     test('maps stream errors', () {
@@ -504,6 +525,22 @@ void main() {
         CaptureError.fromCode('streamFailed', details: 'streamUnsupported')
             .details,
         'streamUnsupported',
+      );
+    });
+
+    test('stream bitrate can change while recording but not while streaming', () {
+      CaptureSessionRules.ensureCanChangeStreamBitrate(isStreaming: false);
+      expect(
+        () => CaptureSessionRules.ensureCanChangeStreamBitrate(
+          isStreaming: true,
+        ),
+        throwsA(
+          isA<CaptureError>().having(
+            (error) => error.details,
+            'details',
+            'streamInProgress',
+          ),
+        ),
       );
     });
 

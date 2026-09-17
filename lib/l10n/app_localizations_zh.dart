@@ -131,6 +131,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get streamKeyHint => '也可把完整地址填在上面';
 
   @override
+  String get streamBitrate => '推流码率';
+
+  @override
+  String get streamMbps1 => '1 Mbps';
+
+  @override
+  String get streamMbps2 => '2 Mbps';
+
+  @override
+  String get streamMbps4 => '4 Mbps';
+
+  @override
+  String get streamMbps6 => '6 Mbps';
+
+  @override
   String get lanPlayback => '局域网播放';
 
   @override
@@ -547,6 +562,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get streamKeyHint => '也可把完整位址填在上面';
+
+  @override
+  String get streamBitrate => '推流位元率';
+
+  @override
+  String get streamMbps1 => '1 Mbps';
+
+  @override
+  String get streamMbps2 => '2 Mbps';
+
+  @override
+  String get streamMbps4 => '4 Mbps';
+
+  @override
+  String get streamMbps6 => '6 Mbps';
 
   @override
   String get lanPlayback => '區域網播放';

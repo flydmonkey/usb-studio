@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:usb_capture/usb_capture.dart';
 import 'package:usb_studio/locale_mode.dart';
 import 'package:usb_studio/operator_prefs.dart';
 
@@ -28,6 +29,25 @@ void main() {
     await const OperatorPrefs(localeMode: LocaleMode.zhHant).save();
     final loaded = await OperatorPrefs.load();
     expect(loaded.localeMode, LocaleMode.zhHant);
+  });
+
+  test('streamBitrate defaults to 2 Mbps when unset', () async {
+    final loaded = await OperatorPrefs.load();
+    expect(loaded.streamBitrate, StreamBitrate.mbps2);
+  });
+
+  test('streamBitrate roundtrips through SharedPreferences', () async {
+    await const OperatorPrefs(streamBitrate: StreamBitrate.mbps4).save();
+    final loaded = await OperatorPrefs.load();
+    expect(loaded.streamBitrate, StreamBitrate.mbps4);
+  });
+
+  test('invalid streamBitrate falls back to 2 Mbps', () async {
+    SharedPreferences.setMockInitialValues({
+      'operator.streamBitrate': 'nope',
+    });
+    final loaded = await OperatorPrefs.load();
+    expect(loaded.streamBitrate, StreamBitrate.mbps2);
   });
 
   test('invalid localeMode falls back to English', () async {

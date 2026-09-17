@@ -107,6 +107,10 @@ class UsbCapture {
     return UsbCapturePlatform.instance.setRecordingQuality(preset);
   }
 
+  Future<void> setStreamBitrate(String preset) {
+    return UsbCapturePlatform.instance.setStreamBitrate(preset);
+  }
+
   Future<void> startRecording({int segmentMinutes = 10}) {
     return UsbCapturePlatform.instance.startRecording(
       segmentMinutes: segmentMinutes,

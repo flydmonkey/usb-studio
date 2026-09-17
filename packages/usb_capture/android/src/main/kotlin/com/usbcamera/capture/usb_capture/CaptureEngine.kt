@@ -34,6 +34,7 @@ import com.serenegiant.usb.IFrameCallback
 import com.serenegiant.usb.Size
 import com.serenegiant.usb.UVCCamera
 import com.serenegiant.usb.UVCControl
+import org.json.JSONObject
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.ArrayDeque
@@ -60,18 +61,28 @@ class CaptureEngine(
     private var monitorVolume = 1f
     private var monitorDelayMs = 0
     private var qualityPreset = "standard"
+    private var streamBitratePreset = "mbps2"
     private var streaming = false
     private var httpLiveEncoding = false
     private var httpServing = false
     private var httpServer: LanHttpServer? = null
-    private var httpHlsWindow: HlsWindow? = null
+    private val mjpegHub = MjpegHub()
+    private val jpegLive = JpegLiveEncoder(mjpegHub, previewView = { previewView })
     private var httpUrl: String? = null
     private var httpPort = 0
+    @Volatile private var previewMjpeg = false
+    @Volatile private var previewWidth = 0
+    @Volatile private var previewHeight = 0
     private val recordingLibrary = RecordingLibrary { null }
     private var streamSession: RtmpStreamSession? = null
     private val livePreviewCallback = IFrameCallback { frame ->
         try {
-            streamSession?.queueNv21(frame)
+            if (streaming) {
+                streamSession?.queueNv21(frame)
+            }
+            if (httpServing) {
+                jpegLive.offerFrame(copyFrame(frame))
+            }
         } catch (_: Throwable) {
         }
     }
@@ -124,6 +135,9 @@ class CaptureEngine(
 
     val isHttpServing: Boolean
         get() = httpServing
+
+    val isSessionOpen: Boolean
+        get() = !openedDeviceId.isNullOrBlank() || previewView != null
 
     fun updateEmit(next: (Map<String, Any?>) -> Unit) {
         emit = next
@@ -178,6 +192,8 @@ class CaptureEngine(
             attachSurfaceIfReady()
             openedDeviceId = deviceId(device)
             hasCaptureAudio = findUsbAudioDevice() != null
+            cachePreviewSize(helper)
+            jpegLive.setSize(previewWidth, previewHeight)
             if (!hasCaptureAudio) {
                 emit(mapOf("type" to "audioUnavailable", "code" to "noAudioSource"))
             }
@@ -187,9 +203,9 @@ class CaptureEngine(
             startWatchdog()
             startAudioMonitor()
             try {
-                maybeStartHttpLive()
+                refreshLiveFrames()
             } catch (error: Exception) {
-                android.util.Log.e("usb_capture", "HLS live encode failed", error)
+                android.util.Log.e("usb_capture", "LAN MJPEG live failed", error)
             }
             openError = null
             openLatch?.countDown()
@@ -254,6 +270,9 @@ class CaptureEngine(
         val now = SystemClock.elapsedRealtime()
         lastFrameAt = now
         gotPreviewFrame = true
+        if (httpServing) {
+            jpegLive.kick()
+        }
         if (fpsWindowStart == 0L) fpsWindowStart = now
         frameCount++
         if (now - fpsWindowStart >= 1000L) {
@@ -361,14 +380,14 @@ class CaptureEngine(
     }
 
     fun setRecordingQuality(preset: String) {
-        if (recording || helper?.isRecording == true || streaming || httpLiveEncoding) {
+        if (recording || helper?.isRecording == true || streaming) {
             throw CaptureException(
                 when {
-                    (streaming || httpLiveEncoding) && !recording -> "streamFailed"
+                    streaming && !recording -> "streamFailed"
                     else -> "recordingFailed"
                 },
                 when {
-                    (streaming || httpLiveEncoding) && !recording -> "streamInProgress"
+                    streaming && !recording -> "streamInProgress"
                     else -> "recordingInProgress"
                 },
             )
@@ -377,6 +396,13 @@ class CaptureEngine(
             "tiny", "small", "high" -> preset
             else -> "standard"
         }
+    }
+
+    fun setStreamBitrate(preset: String) {
+        if (streaming) {
+            throw CaptureException("streamFailed", "streamInProgress")
+        }
+        streamBitratePreset = EncoderLimits.parseStreamBitrate(preset)
     }
 
     fun listFormats(): List<Map<String, Any?>> {
@@ -551,7 +577,8 @@ class CaptureEngine(
             }
             streaming = true
             streamStartedAt = SystemClock.elapsedRealtime()
-            attachHlsSinkIfNeeded(existing)
+            mjpegHub.clear()
+            refreshLiveFrames()
             startAudioMonitor()
             startForegroundIfNeeded()
             maybeEmitBatteryHint()
@@ -573,7 +600,7 @@ class CaptureEngine(
                 width = width,
                 height = height,
                 fps = fps,
-                videoBitrate = videoBitrate(width, height),
+                videoBitrate = streamVideoBitrate(width, height),
                 sampleRate = audioSampleRate,
                 channelCount = audioChannelCount,
                 hasAudio = findUsbAudioDevice() != null,
@@ -590,8 +617,8 @@ class CaptureEngine(
         }
         streaming = true
         streamStartedAt = SystemClock.elapsedRealtime()
-        bindLiveFrames()
-        attachHlsSinkIfNeeded(session)
+        mjpegHub.clear()
+        refreshLiveFrames()
         startAudioMonitor()
         startForegroundIfNeeded()
         maybeEmitBatteryHint()
@@ -608,13 +635,13 @@ class CaptureEngine(
         }
         val ipv4 = LanHttpUrl.pickIpv4(ipv4Addresses())
             ?: throw CaptureException("streamFailed", "httpNoNetwork")
-        val hlsWindow = HlsWindow()
-        httpHlsWindow = hlsWindow
+        mjpegHub.reopen()
         val server = LanHttpServer(
             context = context,
             listRecordings = { recordingLibrary.list(context) },
             openRecording = { id -> recordingLibrary.openForRead(context, id) },
-            hlsWindow = { httpHlsWindow },
+            mjpegHub = { mjpegHub },
+            liveStatus = { liveStatusJson() },
         )
         val port = server.start(8080)
         httpServer = server
@@ -623,23 +650,23 @@ class CaptureEngine(
         httpUrl = LanHttpUrl.display(ipv4, port)
         startForegroundIfNeeded()
         try {
-            maybeStartHttpLive()
+            refreshLiveFrames()
         } catch (error: Exception) {
-            android.util.Log.e("usb_capture", "HLS live encode failed", error)
+            android.util.Log.e("usb_capture", "LAN MJPEG live failed", error)
         }
         return mapOf("url" to httpUrl, "port" to port, "running" to true)
     }
 
     fun stopHttpServer() {
-        stopHttpLiveEncoding(keepServer = true)
+        stopHttpLive()
         httpServer?.stop()
         httpServer = null
-        httpHlsWindow?.reset()
-        httpHlsWindow = null
+        mjpegHub.close()
         httpServing = false
         httpUrl = null
         httpPort = 0
         stopForegroundIfIdle()
+        mainHandler.post { attachSurfaceIfReady() }
     }
 
     fun httpServerStatus(): Map<String, Any?> {
@@ -662,53 +689,19 @@ class CaptureEngine(
         details: String? = null,
         user: Boolean = false,
         notify: Boolean = true,
-        restartHls: Boolean = true,
     ) {
         val session = streamSession
-        if (session == null) {
-            streaming = false
-            streamStartedAt = 0L
-            if (notify && (user || details != null)) {
-                emit(mapOf("type" to "streamStopped"))
-            }
-            return
-        }
-        val keepEncoders = restartHls && httpServing && helper?.isCameraOpened == true
-        if (keepEncoders) {
-            session.encodedSink = null
-            try {
-                session.detachRtmp()
-            } catch (_: Exception) {
-            }
-            streaming = false
-            streamStartedAt = 0L
-            attachHlsSinkIfNeeded(session)
-            stopForegroundIfIdle()
-            if (notify) {
-                if (details != null) {
-                    emit(
-                        mapOf(
-                            "type" to "error",
-                            "code" to "streamFailed",
-                            "message" to details,
-                        ),
-                    )
-                }
-                if (user || details != null) {
-                    emit(mapOf("type" to "streamStopped"))
-                }
-            }
-            return
-        }
-        session.encodedSink = null
-        streamSession = null
         streaming = false
         streamStartedAt = 0L
-        try {
-            session.stop()
-        } catch (_: Exception) {
+        streamSession = null
+        if (session != null) {
+            session.encodedSink = null
+            try {
+                session.stop()
+            } catch (_: Exception) {
+            }
         }
-        httpLiveEncoding = false
+        refreshLiveFrames()
         stopForegroundIfIdle()
         if (!notify) return
         if (details != null) {
@@ -725,79 +718,78 @@ class CaptureEngine(
         }
     }
 
-    private fun maybeStartHttpLive() {
-        if (!httpServing) return
-        val helper = helper ?: return
-        if (helper.isCameraOpened != true) return
-        val window = httpHlsWindow ?: return
-        val sink = HlsLiveSink(window)
-        val existing = streamSession
-        if (existing != null) {
-            existing.encodedSink = sink
+    private fun liveStatusJson(): JSONObject {
+        val snap = jpegLive.snapshot()
+        return JSONObject()
+            .put("hasCard", LanLiveStatus.hasCard(openedDeviceId, gotPreviewFrame))
+            .put("mjpeg", previewMjpeg)
+            .put("paused", false)
+            .put("ready", mjpegHub.hasFrame())
+            .put("deviceId", openedDeviceId ?: "")
+            .put("running", snap["running"] == true)
+            .put("width", snap["width"])
+            .put("height", snap["height"])
+            .put("jpegWidth", snap["jpegWidth"])
+            .put("jpegHeight", snap["jpegHeight"])
+            .put("offered", snap["offered"])
+            .put("published", snap["published"])
+            .put("error", snap["error"] ?: "")
+    }
+
+    private fun cachePreviewSize(helper: ICameraHelper) {
+        val size = helper.previewSize ?: return
+        if (size.width <= 0 || size.height <= 0) return
+        previewWidth = size.width
+        previewHeight = size.height
+        previewMjpeg = size.type == UVCCamera.UVC_VS_FRAME_MJPEG
+    }
+
+    private fun refreshLiveFrames() {
+        if (httpServing) {
             httpLiveEncoding = true
-            bindLiveFrames()
-            return
-        }
-        val size = helper.previewSize
-        val width = size?.width ?: 1280
-        val height = size?.height ?: 720
-        val fps = size?.fps ?: 30
-        val session = RtmpStreamSession(mainHandler) { details ->
-            Thread { stopStreamInternal(details = details) }.start()
-        }
-        try {
-            session.startEncodersOnly(
-                helper = helper,
-                width = width,
-                height = height,
-                fps = EncoderLimits.videoFps(fps),
-                videoBitrate = EncoderLimits.hlsBitrate(videoBitrate(width, height)),
-                sampleRate = audioSampleRate,
-                channelCount = audioChannelCount,
-                hasAudio = findUsbAudioDevice() != null,
-            )
-            session.encodedSink = sink
-            streamSession = session
-            httpLiveEncoding = true
-            bindLiveFrames()
-            startAudioMonitor()
-            startForegroundIfNeeded()
-        } catch (error: Exception) {
-            try {
-                session.stop()
-            } catch (_: Exception) {
-            }
-            streamSession = null
+            jpegLive.setSize(previewWidth, previewHeight)
+            jpegLive.start()
+        } else {
             httpLiveEncoding = false
-            android.util.Log.e(
-                "usb_capture",
-                "HLS live encode failed",
-                error,
-            )
+            jpegLive.stop()
         }
-    }
-
-    private fun stopHttpLiveEncoding(keepServer: Boolean = true) {
-        streamSession?.encodedSink = null
-        if (!streaming && streamSession != null) {
+        val helper = helper ?: return
+        if (streaming || httpServing) {
+            helper.setFrameCallback(livePreviewCallback, UVCCamera.PIXEL_FORMAT_NV21)
+        } else {
             try {
-                streamSession?.stop()
+                helper.setFrameCallback(null, 0)
             } catch (_: Exception) {
             }
-            streamSession = null
-        }
-        httpLiveEncoding = false
-        httpHlsWindow?.reset()
-        if (!keepServer) {
-            // Caller stops LanHttpServer separately.
         }
     }
 
-    private fun attachHlsSinkIfNeeded(session: RtmpStreamSession) {
-        if (!httpServing) return
-        val window = httpHlsWindow ?: return
-        session.encodedSink = HlsLiveSink(window)
-        httpLiveEncoding = true
+    private fun stopHttpLive() {
+        httpLiveEncoding = false
+        jpegLive.stop()
+        mjpegHub.clear()
+        if (!streaming) {
+            try {
+                helper?.setFrameCallback(null, 0)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun copyFrame(frame: java.nio.ByteBuffer): ByteArray {
+        val copy = frame.duplicate()
+        if (copy.remaining() <= 0 && copy.capacity() > 0) {
+            copy.clear()
+        }
+        val remaining = copy.remaining()
+        if (remaining <= 0) return ByteArray(0)
+        val bytes = ByteArray(remaining)
+        try {
+            copy.get(bytes)
+        } catch (_: Exception) {
+            return ByteArray(0)
+        }
+        return bytes
     }
 
     private fun startForegroundIfNeeded() {
@@ -1105,8 +1097,11 @@ class CaptureEngine(
     }
 
     private fun teardownSession() {
-        stopStreamInternal(notify = false, restartHls = false)
-        stopHttpLiveEncoding(keepServer = true)
+        previewWidth = 0
+        previewHeight = 0
+        previewMjpeg = false
+        stopStreamInternal(notify = false)
+        stopHttpLive()
         stopAudioMonitor()
         try {
             aacWriter?.finish()
@@ -1144,12 +1139,6 @@ class CaptureEngine(
         val surface = Surface(texture)
         previewSurface = surface
         helper.addSurface(surface, false)
-    }
-
-    private fun bindLiveFrames() {
-        val helper = helper ?: return
-        if (helper.isCameraOpened != true) return
-        helper.setFrameCallback(livePreviewCallback, UVCCamera.PIXEL_FORMAT_NV21)
     }
 
     private fun pickSize(helper: ICameraHelper): Size? {
@@ -1362,8 +1351,15 @@ class CaptureEngine(
             "tiny" -> 2_000_000
             else -> 8_000_000
         }
-        val scale = (width * height).toDouble() / (1920.0 * 1080.0)
-        return (base * scale.coerceIn(0.25, 2.0)).toInt()
+        return EncoderLimits.scaledBitrate(base, width, height)
+    }
+
+    private fun streamVideoBitrate(width: Int, height: Int): Int {
+        return EncoderLimits.scaledBitrate(
+            EncoderLimits.streamBaseBitrate(streamBitratePreset),
+            width,
+            height,
+        )
     }
 
     private fun formatMap(size: Size): Map<String, Any?> {

@@ -51,6 +51,15 @@ class CaptureSessionRules {
     }
   }
 
+  static void ensureCanChangeStreamBitrate({required bool isStreaming}) {
+    if (isStreaming) {
+      throw const CaptureError(
+        CaptureErrorCode.streamFailed,
+        details: 'streamInProgress',
+      );
+    }
+  }
+
   static bool shouldAutoStart({
     required bool autoRecord,
     required bool sessionOpen,

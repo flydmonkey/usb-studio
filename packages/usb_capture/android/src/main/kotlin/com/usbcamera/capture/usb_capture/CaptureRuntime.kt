@@ -28,7 +28,15 @@ object CaptureRuntime {
     @Synchronized
     fun releaseIfIdle() {
         val current = engine ?: return
-        if (current.isRecordingActive || current.isStreaming || current.isHttpServing) return
+        if (!CaptureRuntimePolicy.shouldRelease(
+                recording = current.isRecordingActive,
+                streaming = current.isStreaming,
+                httpServing = current.isHttpServing,
+                sessionOpen = current.isSessionOpen,
+            )
+        ) {
+            return
+        }
         current.stop()
         engine = null
     }

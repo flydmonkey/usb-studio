@@ -161,6 +161,14 @@ class UsbCapturePlugin :
                     result.error(error.code, error.details ?: error.code, null)
                 }
             }
+            "setStreamBitrate" -> {
+                try {
+                    engine?.setStreamBitrate(call.argument<String>("preset") ?: "mbps2")
+                    result.success(null)
+                } catch (error: CaptureException) {
+                    result.error(error.code, error.details ?: error.code, null)
+                }
+            }
             "open" -> {
                 val id = call.argument<String>("deviceId")
                 if (id == null) {

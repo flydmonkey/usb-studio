@@ -43,10 +43,12 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
   Timer? _ticker;
   DateTime? _recordStartedAt;
   OperatorPrefs _prefs = const OperatorPrefs();
+  int _prefsEpoch = 0;
   bool _deferAutoRecord = false;
   String? _httpUrl;
   String? _httpError;
   String _appVersion = '';
+  final GlobalKey _previewViewKey = GlobalKey();
 
   bool get _tv => widget.television;
 
@@ -118,8 +120,9 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
   }
 
   Future<void> _loadPrefs() async {
+    final epoch = _prefsEpoch;
     final prefs = await OperatorPrefs.load();
-    if (!mounted) return;
+    if (!mounted || epoch != _prefsEpoch) return;
     setState(() {
       _prefs = prefs;
       _session = _session.copyWith(
@@ -139,8 +142,11 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
 
   Future<void> _persist(OperatorPrefs next) async {
     final previousMode = _prefs.localeMode;
+    _prefsEpoch++;
+    final epoch = _prefsEpoch;
+    _prefs = next;
     final saved = await next.save();
-    if (!mounted) return;
+    if (!mounted || epoch != _prefsEpoch) return;
     setState(() {
       _prefs = saved;
       _session = _session.copyWith(
@@ -403,6 +409,11 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       } on CaptureError {
         // Quality applies on the next successful set from settings.
       }
+      try {
+        await widget.plugin.setStreamBitrate(_prefs.streamBitrate.name);
+      } on CaptureError {
+        // Stream bitrate applies on the next successful set from settings.
+      }
       if (adoptRecording != null && adoptRecording.recording) {
         _adoptRecording(adoptRecording);
       } else {
@@ -655,6 +666,18 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       );
       await widget.plugin.setRecordingQuality(preset.name);
       await _persist(_prefs.copyWith(quality: preset));
+    } on CaptureError catch (error) {
+      setState(() => _error = error);
+    }
+  }
+
+  Future<void> _setStreamBitrate(StreamBitrate bitrate) async {
+    try {
+      CaptureSessionRules.ensureCanChangeStreamBitrate(
+        isStreaming: _session.isStreaming,
+      );
+      await widget.plugin.setStreamBitrate(bitrate.name);
+      await _persist(_prefs.copyWith(streamBitrate: bitrate));
     } on CaptureError catch (error) {
       setState(() => _error = error);
     }
@@ -1032,12 +1055,16 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
                           await _pickSaveFolder();
                           setModal(() {});
                         },
-                        onRtmpServer: (value) async {
-                          await _persist(_prefs.copyWith(rtmpServer: value));
-                          setModal(() {});
+                        onRtmpServer: (value) {
+                          unawaited(
+                            _persist(_prefs.copyWith(rtmpServer: value)),
+                          );
                         },
-                        onRtmpKey: (value) async {
-                          await _persist(_prefs.copyWith(rtmpKey: value));
+                        onRtmpKey: (value) {
+                          unawaited(_persist(_prefs.copyWith(rtmpKey: value)));
+                        },
+                        onStreamBitrate: (bitrate) async {
+                          await _setStreamBitrate(bitrate);
                           setModal(() {});
                         },
                         onHttpLan: (enabled) async {
@@ -1056,7 +1083,6 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
                         httpLanSupported: widget.profile.httpLanSupported,
                         httpUrl: _httpUrl,
                         httpError: _httpError,
-                        appVersion: _appVersion,
                         onAbout: _openAbout,
                       ),
                     ),
@@ -1121,7 +1147,7 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
                             Center(
                               child: AspectRatio(
                                 aspectRatio: _session.signal.aspectRatio,
-                                child: const UsbCapturePreview(),
+                                child: UsbCapturePreview(key: _previewViewKey),
                               ),
                             ),
                           if (_session.sessionOpen && !_session.previewEnabled)
@@ -1556,11 +1582,11 @@ class _SettingsSheet extends StatelessWidget {
     required this.onPickFolder,
     required this.onRtmpServer,
     required this.onRtmpKey,
+    required this.onStreamBitrate,
     required this.onHttpLan,
     required this.onLocaleMode,
     required this.rtmpStreamSupported,
     required this.httpLanSupported,
-    required this.appVersion,
     required this.onAbout,
     this.httpUrl,
     this.httpError,
@@ -1584,11 +1610,11 @@ class _SettingsSheet extends StatelessWidget {
   final VoidCallback onPickFolder;
   final ValueChanged<String> onRtmpServer;
   final ValueChanged<String> onRtmpKey;
+  final ValueChanged<StreamBitrate> onStreamBitrate;
   final ValueChanged<bool> onHttpLan;
   final ValueChanged<LocaleMode> onLocaleMode;
   final bool rtmpStreamSupported;
   final bool httpLanSupported;
-  final String appVersion;
   final VoidCallback onAbout;
   final String? httpUrl;
   final String? httpError;
@@ -1829,22 +1855,29 @@ class _SettingsSheet extends StatelessWidget {
             title: l10n.sectionStream,
             television: television,
             children: [
-              Text(l10n.streamUrl),
-              TextFormField(
-                initialValue: prefs.rtmpServer,
-                style: TextStyle(fontSize: television ? 20 : 16),
-                decoration: _settingsFieldDecoration(
-                  hint: 'rtmp://live.example/live',
-                ),
-                onChanged: onRtmpServer,
+              _RtmpUrlFields(
+                television: television,
+                prefs: prefs,
+                onRtmpServer: onRtmpServer,
+                onRtmpKey: onRtmpKey,
               ),
-              Text(l10n.streamKey),
-              TextFormField(
-                initialValue: prefs.rtmpKey,
-                obscureText: true,
-                style: TextStyle(fontSize: television ? 20 : 16),
-                decoration: _settingsFieldDecoration(hint: l10n.streamKeyHint),
-                onChanged: onRtmpKey,
+              Text(l10n.streamBitrate),
+              _SettingsDropdown<StreamBitrate>(
+                key: const Key('stream-bitrate'),
+                television: television,
+                value: prefs.streamBitrate,
+                items: [
+                  for (final bitrate in StreamBitrate.values)
+                    DropdownMenuItem(
+                      value: bitrate,
+                      child: Text(streamBitrateLabel(l10n, bitrate)),
+                    ),
+                ],
+                onChanged: session.isStreaming
+                    ? null
+                    : (bitrate) {
+                        if (bitrate != null) onStreamBitrate(bitrate);
+                      },
               ),
             ],
           ),
@@ -1892,27 +1925,14 @@ class _SettingsSheet extends StatelessWidget {
               ],
             ],
           ),
-        _SettingsSection(
-          title: l10n.sectionAbout,
-          television: television,
-          children: [
-            ListTile(
-              key: const Key('about-open'),
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                'USB Studio',
-                style: TextStyle(fontSize: television ? 20 : 16),
-              ),
-              subtitle: appVersion.isEmpty
-                  ? null
-                  : Text(
-                      l10n.appVersion(appVersion),
-                      style: TextStyle(fontSize: television ? 16 : 13),
-                    ),
-              trailing: Icon(Icons.chevron_right, size: television ? 32 : 24),
-              onTap: onAbout,
-            ),
-          ],
+        ListTile(
+          key: const Key('about-open'),
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            l10n.sectionAbout,
+            style: TextStyle(fontSize: television ? 20 : 16),
+          ),
+          onTap: onAbout,
         ),
       ],
     );
@@ -1933,8 +1953,77 @@ InputDecoration _settingsFieldDecoration({String? hint}) {
   );
 }
 
+class _RtmpUrlFields extends StatefulWidget {
+  const _RtmpUrlFields({
+    required this.television,
+    required this.prefs,
+    required this.onRtmpServer,
+    required this.onRtmpKey,
+  });
+
+  final bool television;
+  final OperatorPrefs prefs;
+  final ValueChanged<String> onRtmpServer;
+  final ValueChanged<String> onRtmpKey;
+
+  @override
+  State<_RtmpUrlFields> createState() => _RtmpUrlFieldsState();
+}
+
+class _RtmpUrlFieldsState extends State<_RtmpUrlFields> {
+  late final TextEditingController _server;
+  late final TextEditingController _key;
+
+  @override
+  void initState() {
+    super.initState();
+    _server = TextEditingController(text: widget.prefs.rtmpServer);
+    _key = TextEditingController(text: widget.prefs.rtmpKey);
+  }
+
+  @override
+  void dispose() {
+    widget.onRtmpServer(_server.text);
+    widget.onRtmpKey(_key.text);
+    _server.dispose();
+    _key.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final fontSize = widget.television ? 20.0 : 16.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l10n.streamUrl),
+        TextFormField(
+          key: const Key('rtmp-server'),
+          controller: _server,
+          style: TextStyle(fontSize: fontSize),
+          decoration: _settingsFieldDecoration(
+            hint: 'rtmp://live.example/live',
+          ),
+          onChanged: widget.onRtmpServer,
+        ),
+        Text(l10n.streamKey),
+        TextFormField(
+          key: const Key('rtmp-key'),
+          controller: _key,
+          obscureText: true,
+          style: TextStyle(fontSize: fontSize),
+          decoration: _settingsFieldDecoration(hint: l10n.streamKeyHint),
+          onChanged: widget.onRtmpKey,
+        ),
+      ],
+    );
+  }
+}
+
 class _SettingsDropdown<T> extends StatelessWidget {
   const _SettingsDropdown({
+    super.key,
     required this.television,
     required this.value,
     required this.items,

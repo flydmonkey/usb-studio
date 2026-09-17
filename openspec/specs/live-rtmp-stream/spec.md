@@ -24,7 +24,7 @@ On Android, when a capture session is open, the operator SHALL be able to start 
 - **THEN** the app MUST NOT show the capture-bar stream control
 
 ### Requirement: Dual encode from UVC frames and USB PCM
-Android ingest SHALL encode H.264 from a dedicated encoder surface attached to the UVC helper, and AAC from the same USB PCM already used for monitoring, independent of the file `VideoCapture` mux. If USB audio is unavailable, ingest MAY be video-only. Changing capture format or recording quality while ingest is live SHALL be rejected with a readable error.
+Android ingest SHALL encode H.264 from a dedicated encoder surface attached to the UVC helper, and AAC from the same USB PCM already used for monitoring, independent of the file `VideoCapture` mux. If USB audio is unavailable, ingest MAY be video-only. Changing capture format or recording quality while ingest is live SHALL be rejected with a readable error. The operator SHALL be able to choose an independent RTMP video bitrate preset (`mbps1`, `mbps2`, `mbps4`, `mbps6`; 1/2/4/6 Mbps at 1080p, scaled by pixel area) that does not change local recording quality. Default SHALL be `mbps2`. Changing the stream bitrate while ingest is live SHALL be rejected. If LAN live encoding is already running and RTMP attaches to that encoder, the current encoder bitrate SHALL be kept.
 
 #### Scenario: Local file keeps recording while ingest runs
 - **WHEN** both ingest and recording are active
@@ -33,6 +33,14 @@ Android ingest SHALL encode H.264 from a dedicated encoder surface attached to t
 #### Scenario: Format locked while live
 - **WHEN** ingest is live and the operator tries to change format or quality
 - **THEN** the app MUST keep the current format and explain that streaming is in progress
+
+#### Scenario: Stream bitrate is independent of recording quality
+- **WHEN** recording quality is `standard` and stream bitrate is `mbps2`
+- **THEN** a newly started RTMP encoder SHALL use 2 Mbps at 1080p and local recording SHALL keep the standard recording bitrate
+
+#### Scenario: Stream bitrate locked while live
+- **WHEN** ingest is live and the operator tries to change stream bitrate
+- **THEN** the app MUST keep the current stream bitrate and explain that streaming is in progress
 
 ### Requirement: Ingest stops on disconnect, no-signal, or server failure
 If the capture card detaches, video frames stop (no-signal), or the RTMP connection fails after start, the app SHALL stop ingest, release stream encoders, and show a readable `streamFailed` (or disconnected) message. Local recording MAY continue unless the card is gone. The operator MUST be able to start ingest again after the session is healthy.

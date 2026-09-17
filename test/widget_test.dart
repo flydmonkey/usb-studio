@@ -34,6 +34,7 @@ class _FakePlatform extends UsbCapturePlatform with MockPlatformInterfaceMixin {
   bool streamStarted = false;
   bool streamStopped = false;
   String? lastStreamUrl;
+  String? lastStreamBitrate;
   bool httpServerStarted = false;
   bool httpServerStopped = false;
   final StreamController<CaptureEvent> eventsController =
@@ -110,6 +111,11 @@ class _FakePlatform extends UsbCapturePlatform with MockPlatformInterfaceMixin {
 
   @override
   Future<void> setRecordingQuality(String preset) async {}
+
+  @override
+  Future<void> setStreamBitrate(String preset) async {
+    lastStreamBitrate = preset;
+  }
 
   @override
   Future<void> startRecording({int segmentMinutes = 10}) async {
@@ -773,6 +779,9 @@ void main() {
     expect(find.text('预览'), findsWidgets);
     expect(find.text('录制画质'), findsOneWidget);
     expect(find.text('标准（约 60MB/分钟）'), findsWidgets);
+    await tester.ensureVisible(find.byKey(const Key('stream-bitrate')));
+    expect(find.text('推流码率'), findsOneWidget);
+    expect(find.text('2 Mbps'), findsOneWidget);
     expect(find.text('开启预览'), findsNothing);
     expect(find.text('预览'), findsWidgets);
     expect(find.text('保存位置'), findsOneWidget);
@@ -984,6 +993,42 @@ void main() {
     expect(tile.value, isFalse);
   });
 
+  testWidgets('turning lan off then tapping preview keeps the preview widget', (
+    tester,
+  ) async {
+    final fake = _FakePlatform(
+      devices: const [CaptureDevice(id: 'usb-1', name: '采集卡', hasAudio: true)],
+    );
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+          initialPrefs: const OperatorPrefs(httpLanEnabled: true),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(UsbCapturePreview), findsOneWidget);
+    await tester.tap(find.byTooltip('设置'));
+    await tester.pump();
+    final lanSwitch = find.byKey(const Key('lan-playback'));
+    await tester.ensureVisible(lanSwitch);
+    await tester.pumpAndSettle();
+    await tester.tap(lanSwitch);
+    await tester.pumpAndSettle();
+    expect(fake.httpServerStopped, isTrue);
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
+    expect(find.byType(UsbCapturePreview), findsOneWidget);
+    await tester.tap(find.byType(ClipRRect));
+    await tester.pump();
+    expect(find.byType(UsbCapturePreview), findsOneWidget);
+  });
+
   testWidgets('settings hides lan playback when unsupported', (
     tester,
   ) async {
@@ -1053,6 +1098,38 @@ void main() {
     expect(find.textContaining('密钥'), findsNothing);
   });
 
+  testWidgets('stream uses the address typed in settings', (tester) async {
+    final fake = _FakePlatform(
+      devices: const [CaptureDevice(id: 'usb-1', name: '采集卡', hasAudio: true)],
+    );
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.byTooltip('设置'));
+    await tester.pump();
+    final urlField = find.byKey(const Key('rtmp-server'));
+    await tester.ensureVisible(urlField);
+    await tester.pumpAndSettle();
+    await tester.enterText(urlField, 'rtmp://live.example/live/stream');
+    await tester.pump();
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
+    expect(find.text('推流地址'), findsNothing);
+    await tester.tap(find.text('推流'));
+    await tester.pump();
+    expect(fake.streamStarted, isTrue);
+    expect(fake.lastStreamUrl, 'rtmp://live.example/live/stream');
+  });
+
   testWidgets('stream with full rtmp url does not need a key', (tester) async {
     final fake = _FakePlatform(
       devices: const [CaptureDevice(id: 'usb-1', name: '采集卡', hasAudio: true)],
@@ -1077,6 +1154,96 @@ void main() {
     await tester.pump();
     expect(fake.streamStarted, isTrue);
     expect(fake.lastStreamUrl, 'rtmp://live.example/live/stream');
+  });
+
+  testWidgets('stream accepts a full rtmp url pasted in the key field', (
+    tester,
+  ) async {
+    final fake = _FakePlatform(
+      devices: const [CaptureDevice(id: 'usb-1', name: '采集卡', hasAudio: true)],
+    );
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+          initialPrefs: const OperatorPrefs(
+            rtmpServer: '',
+            rtmpKey: 'rtmp://live.example/live/stream',
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('推流'));
+    await tester.pump();
+    expect(fake.streamStarted, isTrue);
+    expect(fake.lastStreamUrl, 'rtmp://live.example/live/stream');
+  });
+
+  testWidgets('settings can change stream bitrate independently', (tester) async {
+    final fake = _FakePlatform();
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.byTooltip('设置'));
+    await tester.pump();
+    final bitrate = find.byKey(const Key('stream-bitrate'));
+    await tester.ensureVisible(bitrate);
+    await tester.pumpAndSettle();
+    await tester.tap(bitrate);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1 Mbps').last);
+    await tester.pumpAndSettle();
+    expect(fake.lastStreamBitrate, 'mbps1');
+  });
+
+  testWidgets('stream bitrate dropdown is disabled while streaming', (
+    tester,
+  ) async {
+    final fake = _FakePlatform(
+      devices: const [CaptureDevice(id: 'usb-1', name: '采集卡', hasAudio: true)],
+    );
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+          initialPrefs: const OperatorPrefs(
+            rtmpServer: 'rtmp://live.example/live/stream',
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('推流'));
+    await tester.pump();
+    expect(fake.streamStarted, isTrue);
+    await tester.tap(find.byTooltip('设置'));
+    await tester.pump();
+    final bitrate = find.byKey(const Key('stream-bitrate'));
+    await tester.ensureVisible(bitrate);
+    await tester.pumpAndSettle();
+    expect(find.text('2 Mbps'), findsOneWidget);
+    await tester.tap(bitrate);
+    await tester.pumpAndSettle();
+    expect(find.text('1 Mbps'), findsNothing);
+    expect(fake.lastStreamBitrate, 'mbps2');
   });
 
   testWidgets('english locale uses english capture bar', (tester) async {
@@ -1265,6 +1432,9 @@ void main() {
     final about = find.byKey(const Key('about-open'));
     await tester.ensureVisible(about);
     await tester.pumpAndSettle();
+    expect(tester.widget<ListTile>(about).title, isA<Text>());
+    expect((tester.widget<ListTile>(about).title as Text).data, '关于');
+    expect(find.descendant(of: about, matching: find.byIcon(Icons.chevron_right)), findsNothing);
     await tester.tap(about);
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('about-product-name')), findsOneWidget);

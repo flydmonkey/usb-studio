@@ -35,5 +35,9 @@ internal class RtmpUrlTest {
             RtmpUrl.join("rtmp://live.example/live/stream", ""),
         )
         assertNull(RtmpUrl.join("rtmp://live.example", ""))
+        assertEquals(
+            "rtmp://live.example/live/stream",
+            RtmpUrl.join("", "rtmp://live.example/live/stream"),
+        )
     }
 }

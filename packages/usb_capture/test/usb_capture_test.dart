@@ -73,6 +73,9 @@ class MockUsbCapturePlatform
   Future<void> setRecordingQuality(String preset) async {}
 
   @override
+  Future<void> setStreamBitrate(String preset) async {}
+
+  @override
   Future<void> startRecording({int segmentMinutes = 10}) async {}
 
   @override
@@ -236,6 +239,21 @@ void main() {
     });
     await platform.setUiLocale('zh-Hant');
     expect(sent, 'zh-Hant');
+  });
+
+  test('setStreamBitrate method channel sends the preset', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('usb_capture');
+    final platform = MethodChannelUsbCapture();
+    String? sent;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'setStreamBitrate');
+      sent = (call.arguments as Map)['preset'] as String?;
+      return null;
+    });
+    await platform.setStreamBitrate('mbps1');
+    expect(sent, 'mbps1');
   });
 
   test('hasCapturePermissions method channel returns bool', () async {

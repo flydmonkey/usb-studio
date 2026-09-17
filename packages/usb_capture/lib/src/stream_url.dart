@@ -1,12 +1,12 @@
 class StreamUrl {
   static String? join({required String server, required String key}) {
-    final host = server.trim();
-    final streamKey = key.trim();
-    if (host.isEmpty) {
-      return null;
+    var host = server.trim();
+    var streamKey = key.trim();
+    if (host.isEmpty && _isRtmp(streamKey)) {
+      host = streamKey;
+      streamKey = '';
     }
-    final scheme = host.toLowerCase();
-    if (!scheme.startsWith('rtmp://') && !scheme.startsWith('rtmps://')) {
+    if (host.isEmpty || !_isRtmp(host)) {
       return null;
     }
     if (streamKey.isEmpty) {
@@ -16,6 +16,11 @@ class StreamUrl {
       return '$host$streamKey';
     }
     return '${host.replaceFirst(RegExp(r'/+$'), '')}/$streamKey';
+  }
+
+  static bool _isRtmp(String value) {
+    final scheme = value.toLowerCase();
+    return scheme.startsWith('rtmp://') || scheme.startsWith('rtmps://');
   }
 
   static bool _hasAppPath(String host) {

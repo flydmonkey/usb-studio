@@ -23,7 +23,9 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
+      # ubuntu-latest already ships Android SDK + licenses.
+      # android-actions/setup-android@v3 still tries to install the
+      # removed `tools` package and fails before Flutter runs.
 
       - uses: subosito/flutter-action@v2
         with:

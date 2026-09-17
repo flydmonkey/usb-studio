@@ -117,6 +117,15 @@ void main() {
       expect(hidden.togglePreview().previewActive, isTrue);
     });
 
+    test('lanLiveBusy hides preview without clearing previewEnabled', () {
+      const open = SessionState(sessionOpen: true, previewEnabled: true);
+      expect(open.previewActive, isTrue);
+      final busy = open.copyWith(lanLiveBusy: true);
+      expect(busy.previewEnabled, isTrue);
+      expect(busy.previewActive, isFalse);
+      expect(busy.copyWith(lanLiveBusy: false).previewActive, isTrue);
+    });
+
     test('disconnect clears preview and recording', () {
       final disconnected = const SessionState(sessionOpen: true)
           .startRecording()
@@ -447,6 +456,17 @@ void main() {
       expect(
         CaptureEvent.fromMap({'type': 'streamStarted'}).type,
         CaptureEventType.streamStarted,
+      );
+    });
+
+    test('lanLiveBusy event maps busy flag', () {
+      expect(
+        CaptureEvent.fromMap({'type': 'lanLiveBusy', 'busy': true}).type,
+        CaptureEventType.lanLiveBusy,
+      );
+      expect(
+        CaptureEvent.fromMap({'type': 'lanLiveBusy', 'busy': true}).busy,
+        isTrue,
       );
     });
   });

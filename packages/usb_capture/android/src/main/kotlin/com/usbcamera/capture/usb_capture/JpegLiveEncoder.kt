@@ -74,6 +74,13 @@ internal class JpegLiveEncoder(
     fun offerFrame(frame: ByteArray) {
         if (frame.isEmpty()) return
         offered.incrementAndGet()
+        val jpeg = MjpegJpeg.extract(frame)
+        if (jpeg != null) {
+            hub.publish(jpeg)
+            published.incrementAndGet()
+            lastError.set("")
+            return
+        }
         synchronized(lock) {
             if (!running) return
             latest = frame
@@ -144,7 +151,7 @@ internal class JpegLiveEncoder(
         return when (JpegFrameFormat.kind(frame.size, w, h)) {
             JpegFrameFormat.Kind.Rgbx -> publishRgbx(frame, w, h, out)
             JpegFrameFormat.Kind.Nv21 -> publishNv21(frame, w, h, out)
-            JpegFrameFormat.Kind.Unknown -> {
+            else -> {
                 lastError.set("frame ${frame.size} for ${w}x$h")
                 false
             }

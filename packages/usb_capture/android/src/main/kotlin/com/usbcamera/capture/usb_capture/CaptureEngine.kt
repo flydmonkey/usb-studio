@@ -62,15 +62,17 @@ class CaptureEngine(
     private var monitorDelayMs = 0
     private var qualityPreset = "standard"
     private var streamBitratePreset = "mbps2"
-    private var streaming = false
+    @Volatile private var streaming = false
     private var httpLiveEncoding = false
     private var httpServing = false
     private var httpServer: LanHttpServer? = null
     private val mjpegHub = MjpegHub()
+    private val lanLiveViewers = LanLiveViewers()
     private val jpegLive = JpegLiveEncoder(mjpegHub, previewView = { previewView })
     private var httpUrl: String? = null
     private var httpPort = 0
     @Volatile private var previewMjpeg = false
+    @Volatile private var lanLiveBusy = false
     @Volatile private var previewWidth = 0
     @Volatile private var previewHeight = 0
     private val recordingLibrary = RecordingLibrary { null }
@@ -80,7 +82,7 @@ class CaptureEngine(
             if (streaming) {
                 streamSession?.queueNv21(frame)
             }
-            if (httpServing) {
+            if (lanLiveViewers.active(streaming = streaming, mjpeg = previewMjpeg)) {
                 jpegLive.offerFrame(copyFrame(frame))
             }
         } catch (_: Throwable) {
@@ -257,7 +259,7 @@ class CaptureEngine(
 
     fun attachPreview(view: TextureView) {
         previewView = view
-        attachSurfaceIfReady()
+        if (!lanLiveBusy) attachSurfaceIfReady()
     }
 
     fun detachPreview() {
@@ -270,9 +272,6 @@ class CaptureEngine(
         val now = SystemClock.elapsedRealtime()
         lastFrameAt = now
         gotPreviewFrame = true
-        if (httpServing) {
-            jpegLive.kick()
-        }
         if (fpsWindowStart == 0L) fpsWindowStart = now
         frameCount++
         if (now - fpsWindowStart >= 1000L) {
@@ -411,17 +410,14 @@ class CaptureEngine(
     }
 
     fun setFormat(formatId: String) {
-        if (recording || helper?.isRecording == true || streaming || httpLiveEncoding) {
-            throw CaptureException(
-                when {
-                    (streaming || httpLiveEncoding) && !recording -> "streamFailed"
-                    else -> "recordingFailed"
-                },
-                when {
-                    (streaming || httpLiveEncoding) && !recording -> "streamInProgress"
-                    else -> "recordingInProgress"
-                },
-            )
+        val lanPublishing = lanLiveBusy ||
+            lanLiveViewers.active(streaming = streaming, mjpeg = previewMjpeg)
+        CaptureRuntimePolicy.formatLock(
+            recording = recording || helper?.isRecording == true,
+            streaming = streaming,
+            lanLiveBusy = lanPublishing,
+        )?.let { (code, details) ->
+            throw CaptureException(code, details)
         }
         val helper = helper
         if (helper == null || helper.isCameraOpened != true) {
@@ -642,6 +638,8 @@ class CaptureEngine(
             openRecording = { id -> recordingLibrary.openForRead(context, id) },
             mjpegHub = { mjpegHub },
             liveStatus = { liveStatusJson() },
+            liveViewers = lanLiveViewers,
+            onLiveViewersChanged = { mainHandler.post { refreshLanLive() } },
         )
         val port = server.start(8080)
         httpServer = server
@@ -744,23 +742,35 @@ class CaptureEngine(
         previewMjpeg = size.type == UVCCamera.UVC_VS_FRAME_MJPEG
     }
 
+    private fun refreshLanLive() {
+        refreshLiveFrames()
+    }
+
     private fun refreshLiveFrames() {
-        if (httpServing) {
-            httpLiveEncoding = true
-            jpegLive.setSize(previewWidth, previewHeight)
-            jpegLive.start()
-        } else {
-            httpLiveEncoding = false
-            jpegLive.stop()
+        val helper = helper
+        val lanActive = lanLiveViewers.active(streaming = streaming, mjpeg = previewMjpeg)
+        httpLiveEncoding = lanActive
+        if (lanActive != lanLiveBusy) {
+            lanLiveBusy = lanActive
+            emit(mapOf("type" to "lanLiveBusy", "busy" to lanActive))
+            if (lanActive) {
+                previewSurface?.let { helper?.removeSurface(it) }
+                previewSurface = null
+            } else {
+                attachSurfaceIfReady()
+            }
         }
-        val helper = helper ?: return
-        if (streaming || httpServing) {
-            helper.setFrameCallback(livePreviewCallback, UVCCamera.PIXEL_FORMAT_NV21)
-        } else {
-            try {
+        if (helper == null) return
+        when {
+            streaming -> helper.setFrameCallback(livePreviewCallback, UVCCamera.PIXEL_FORMAT_NV21)
+            lanActive -> helper.setFrameCallback(livePreviewCallback, UVCCamera.PIXEL_FORMAT_RAW)
+            else -> try {
                 helper.setFrameCallback(null, 0)
             } catch (_: Exception) {
             }
+        }
+        if (!lanActive) {
+            jpegLive.stop()
         }
     }
 
@@ -1131,6 +1141,7 @@ class CaptureEngine(
     }
 
     private fun attachSurfaceIfReady() {
+        if (lanLiveBusy) return
         val view = previewView ?: return
         val texture = view.surfaceTexture ?: return
         val helper = helper ?: return

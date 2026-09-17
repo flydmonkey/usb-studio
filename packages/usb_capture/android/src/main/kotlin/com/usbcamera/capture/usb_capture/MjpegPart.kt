@@ -1,6 +1,7 @@
 package com.usbcamera.capture.usb_capture
 
 import java.io.InputStream
+import java.util.concurrent.atomic.AtomicBoolean
 
 object MjpegPart {
     const val BOUNDARY = "usbframe"
@@ -22,11 +23,20 @@ object MjpegPart {
 
 class MjpegMultipartStream(
     private val hub: MjpegHub,
+    private val onClosed: () -> Unit = {},
+    private val idleMs: Long = 30_000L,
     private val boundary: String = MjpegPart.BOUNDARY,
 ) : InputStream() {
+    private val closed = AtomicBoolean(false)
     private var lastGeneration = 0L
     private var buffer = ByteArray(0)
     private var offset = 0
+
+    @Volatile
+    var touchedAtMs: Long = System.currentTimeMillis()
+        private set
+
+    internal fun idleTimeoutMs(): Long = idleMs
 
     override fun read(): Int {
         val one = ByteArray(1)
@@ -35,9 +45,23 @@ class MjpegMultipartStream(
     }
 
     override fun read(b: ByteArray, off: Int, len: Int): Int {
+        if (closed.get()) return -1
         if (len <= 0) return 0
+
+        val now = System.currentTimeMillis()
+        if (now - touchedAtMs > idleMs) {
+            close()
+            return -1
+        }
+        touchedAtMs = now
+
         while (offset >= buffer.size) {
-            if (!hub.isOpen()) return -1
+            if (closed.get()) return -1
+            if (!hub.isOpen()) {
+                close()
+                return -1
+            }
+            touchedAtMs = System.currentTimeMillis()
             val next = hub.awaitNext(lastGeneration, 15_000L) ?: continue
             lastGeneration = next.first
             buffer = MjpegPart.encode(boundary, next.second)
@@ -47,5 +71,12 @@ class MjpegMultipartStream(
         System.arraycopy(buffer, offset, b, off, n)
         offset += n
         return n
+    }
+
+    override fun close() {
+        if (closed.compareAndSet(false, true)) {
+            onClosed()
+        }
+        super.close()
     }
 }

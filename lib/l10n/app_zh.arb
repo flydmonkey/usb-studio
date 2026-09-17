@@ -62,6 +62,7 @@
   "snapshotSaved": "已保存截图",
   "segmentStatus": "第{index}段",
   "previewOffCanRecord": "预览已关闭，仍可录制",
+  "previewLanLiveBusy": "网页正在看现场",
   "noSignal": "无信号",
   "waitingSignal": "等待信号",
   "segmentOff": "关闭",

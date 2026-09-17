@@ -87,6 +87,7 @@
     }
   },
   "previewOffCanRecord": "Preview is off; recording still works",
+  "previewLanLiveBusy": "Webpage is watching live preview",
   "noSignal": "No signal",
   "waitingSignal": "Waiting for signal",
   "segmentOff": "Off",

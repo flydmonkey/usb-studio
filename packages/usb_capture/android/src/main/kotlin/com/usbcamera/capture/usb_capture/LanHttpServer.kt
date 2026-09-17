@@ -8,12 +8,14 @@ import org.json.JSONObject
 import java.io.InputStream
 import java.net.URLDecoder
 
-class LanHttpServer(
+internal class LanHttpServer(
     private val context: Context,
     private val listRecordings: () -> List<Map<String, Any?>>,
     private val openRecording: (String) -> Pair<ParcelFileDescriptor, Long>?,
     private val mjpegHub: () -> MjpegHub?,
     private val liveStatus: () -> JSONObject,
+    private val liveViewers: LanLiveViewers,
+    private val onLiveViewersChanged: () -> Unit,
 ) {
     private var impl: ServerImpl? = null
     private var boundPort = 0
@@ -38,9 +40,14 @@ class LanHttpServer(
     }
 
     fun stop() {
+        liveViewers.closeAllTracked()
         impl?.stop()
         impl = null
         boundPort = 0
+        if (liveViewers.count() != 0) {
+            while (liveViewers.remove() > 0) {}
+            onLiveViewersChanged()
+        }
     }
 
     private inner class ServerImpl(port: Int) : NanoHTTPD("0.0.0.0", port) {
@@ -143,11 +150,19 @@ class LanHttpServer(
         private fun serveLiveMjpeg(): Response {
             val hub = mjpegHub()
                 ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "")
-            val mime = "multipart/x-mixed-replace; boundary=${MjpegPart.BOUNDARY}"
+            liveViewers.add()
+            onLiveViewersChanged()
+            lateinit var stream: MjpegMultipartStream
+            stream = MjpegMultipartStream(hub, onClosed = {
+                liveViewers.untrack(stream)
+                liveViewers.remove()
+                onLiveViewersChanged()
+            })
+            liveViewers.track(stream)
             return newChunkedResponse(
                 Response.Status.OK,
-                mime,
-                MjpegMultipartStream(hub),
+                "multipart/x-mixed-replace; boundary=${MjpegPart.BOUNDARY}",
+                stream,
             ).apply {
                 addHeader("Cache-Control", "no-cache, no-store, must-revalidate")
                 addHeader("Pragma", "no-cache")

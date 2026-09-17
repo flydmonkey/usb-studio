@@ -318,6 +318,11 @@
         setLiveOn(liveToggle.checked);
       });
 
+      window.addEventListener('pagehide', function () {
+        stopLivePolling();
+        stopLiveStream();
+      });
+
       function fullscreenElement() {
         return document.fullscreenElement || document.webkitFullscreenElement || null;
       }

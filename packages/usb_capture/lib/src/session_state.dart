@@ -105,6 +105,7 @@ class SessionState {
     this.segmentMinutes = 10,
     this.autoRecord = false,
     this.streaming = false,
+    this.lanLiveBusy = false,
   });
 
   final bool sessionOpen;
@@ -128,8 +129,9 @@ class SessionState {
   final int segmentMinutes;
   final bool autoRecord;
   final bool streaming;
+  final bool lanLiveBusy;
 
-  bool get previewActive => sessionOpen && previewEnabled;
+  bool get previewActive => sessionOpen && previewEnabled && !lanLiveBusy;
   bool get isRecording => recording == RecordingStatus.recording;
   bool get isStreaming => streaming;
 
@@ -155,6 +157,7 @@ class SessionState {
     int? segmentMinutes,
     bool? autoRecord,
     bool? streaming,
+    bool? lanLiveBusy,
   }) {
     return SessionState(
       sessionOpen: sessionOpen ?? this.sessionOpen,
@@ -180,6 +183,7 @@ class SessionState {
       segmentMinutes: segmentMinutes ?? this.segmentMinutes,
       autoRecord: autoRecord ?? this.autoRecord,
       streaming: streaming ?? this.streaming,
+      lanLiveBusy: lanLiveBusy ?? this.lanLiveBusy,
     );
   }
 

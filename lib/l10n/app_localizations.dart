@@ -475,6 +475,12 @@ abstract class AppLocalizations {
   /// **'Preview is off; recording still works'**
   String get previewOffCanRecord;
 
+  /// No description provided for @previewLanLiveBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Webpage is watching live preview'**
+  String get previewLanLiveBusy;
+
   /// No description provided for @noSignal.
   ///
   /// In en, this message translates to:

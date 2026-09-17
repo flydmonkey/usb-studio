@@ -1,7 +1,12 @@
 package com.usbcamera.capture.usb_capture
 
 internal object JpegFrameFormat {
-    enum class Kind { Rgbx, Nv21, Unknown }
+    enum class Kind { Jpeg, Rgbx, Nv21, Unknown }
+
+    fun kind(frame: ByteArray, width: Int, height: Int): Kind {
+        if (MjpegJpeg.hasSoi(frame)) return Kind.Jpeg
+        return kind(frame.size, width, height)
+    }
 
     fun kind(bytes: Int, width: Int, height: Int): Kind {
         if (width <= 0 || height <= 0 || bytes <= 0) return Kind.Unknown

@@ -1,10 +1,15 @@
 package com.usbcamera.capture.usb_capture
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 internal class MjpegJpegTest {
     @Test
@@ -26,6 +31,12 @@ internal class MjpegJpegTest {
     fun rejectsNonJpeg() {
         assertNull(MjpegJpeg.extract(byteArrayOf(0x00, 0x01, 0x02)))
         assertNull(MjpegJpeg.extract(byteArrayOf()))
+    }
+
+    @Test
+    fun hasSoiDetectsJpeg() {
+        assertTrue(MjpegJpeg.hasSoi(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x01)))
+        assertFalse(MjpegJpeg.hasSoi(byteArrayOf(0x00, 0x01)))
     }
 }
 
@@ -68,6 +79,16 @@ internal class MjpegPartTest {
 
 internal class MjpegMultipartStreamTest {
     @Test
+    fun closeInvokesOnClosedOnce() {
+        val hub = MjpegHub()
+        var n = 0
+        val stream = MjpegMultipartStream(hub, onClosed = { n++ })
+        stream.close()
+        stream.close()
+        assertEquals(1, n)
+    }
+
+    @Test
     fun readsLatestJpegAsMultipart() {
         val hub = MjpegHub()
         val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x07)
@@ -79,5 +100,45 @@ internal class MjpegMultipartStreamTest {
         assertContentEquals(expected, buf)
         hub.close()
         assertEquals(-1, stream.read())
+    }
+
+    @Test
+    fun idleReadClosesAndOnClosedOnce() {
+        val hub = MjpegHub()
+        var n = 0
+        val stream = MjpegMultipartStream(hub, onClosed = { n++ }, idleMs = 40L)
+        Thread.sleep(60)
+        assertEquals(-1, stream.read())
+        assertEquals(-1, stream.read())
+        assertEquals(1, n)
+    }
+
+    @Test
+    fun awaitNextTimeoutInsideReadIsNotStale() {
+        val hub = MjpegHub()
+        var n = 0
+        val stream = MjpegMultipartStream(hub, onClosed = { n++ }, idleMs = 40L)
+        val bytesRead = AtomicInteger(0)
+        val done = CountDownLatch(1)
+        val reader = Thread {
+            bytesRead.set(stream.read())
+            done.countDown()
+        }
+        reader.start()
+        val waitDeadline = System.currentTimeMillis() + 1_000
+        while (reader.state != Thread.State.TIMED_WAITING && reader.state != Thread.State.WAITING) {
+            if (System.currentTimeMillis() > waitDeadline) {
+                fail("read() did not block on hub.awaitNext")
+            }
+            Thread.sleep(5)
+        }
+        Thread.sleep(60)
+        assertEquals(0, n)
+        assertEquals(1, done.count)
+        val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0x09)
+        hub.publish(jpeg)
+        assertTrue(done.await(2, TimeUnit.SECONDS))
+        assertTrue(bytesRead.get() > 0)
+        assertEquals(0, n)
     }
 }

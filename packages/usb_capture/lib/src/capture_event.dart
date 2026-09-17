@@ -14,6 +14,7 @@ enum CaptureEventType {
   audioPeak,
   streamStarted,
   streamStopped,
+  lanLiveBusy,
   error,
 }
 
@@ -30,6 +31,7 @@ class CaptureEvent {
     this.sessionContinuing = false,
     this.segmentIndex,
     this.elapsedMs,
+    this.busy = false,
   });
 
   final CaptureEventType type;
@@ -43,6 +45,7 @@ class CaptureEvent {
   final bool sessionContinuing;
   final int? segmentIndex;
   final int? elapsedMs;
+  final bool busy;
 
   factory CaptureEvent.fromMap(Map<dynamic, dynamic> map) {
     final typeName = map['type'] as String? ?? 'error';
@@ -73,6 +76,7 @@ class CaptureEvent {
       sessionContinuing: map['sessionContinuing'] as bool? ?? false,
       segmentIndex: (map['segmentIndex'] as num?)?.toInt(),
       elapsedMs: (map['elapsedMs'] as num?)?.toInt(),
+      busy: map['busy'] as bool? ?? false,
     );
   }
 }

@@ -208,6 +208,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previewOffCanRecord => 'Preview is off; recording still works';
 
   @override
+  String get previewLanLiveBusy => 'Webpage is watching live preview';
+
+  @override
   String get noSignal => 'No signal';
 
   @override

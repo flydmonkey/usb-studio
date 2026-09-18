@@ -207,9 +207,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get previewOffCanRecord => '预览已关闭，仍可录制';
 
   @override
-  String get previewLanLiveBusy => '网页正在看现场';
-
-  @override
   String get noSignal => '无信号';
 
   @override
@@ -641,9 +638,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get previewOffCanRecord => '預覽已關閉，仍可錄製';
-
-  @override
-  String get previewLanLiveBusy => '網頁正在看現場';
 
   @override
   String get noSignal => '無訊號';

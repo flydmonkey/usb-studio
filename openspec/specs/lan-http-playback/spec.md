@@ -74,23 +74,11 @@ The recording list SHALL use the same source and ids as the in-app library (albu
 - **THEN** the server SHALL return `404` without affecting other list entries
 
 ### Requirement: Live MJPEG when capture card is connected
-When a capture session is open and the capture format is MJPEG, Live MJPEG SHALL copy UVC JPEG (`PIXEL_FORMAT_RAW`) while at least one `/live.mjpeg` reader exists and ingest is idle. The Android preview surface SHALL detach for that interval and SHALL return when readers drop to zero or ingest starts. Live SHALL NOT NV21-recompress. `previewEnabled` SHALL NOT change. If the USB capture card detaches or the session ends, live MJPEG SHALL stop updating while VOD routes remain available. If the current format is not MJPEG, the page SHALL tell the operator to switch to MJPEG instead of showing a broken live picture.
+When a capture session is open, the capture format is MJPEG, and 局域网播放 is enabled, the server SHALL publish silent live MJPEG by copying JPEG frames from the UVC callback (no H.264 transcode). If the USB capture card detaches or the session ends, live MJPEG SHALL stop updating while VOD routes remain available. If the current format is not MJPEG, the page SHALL tell the operator to switch to MJPEG instead of showing a broken live picture.
 
 #### Scenario: Live appears after card connects
 - **WHEN** 局域网播放 is already on, a browser has the home page open with 实时预览 switched on, and the operator opens a healthy MJPEG capture session
 - **THEN** the shared player SHALL begin showing silent live video
-
-#### Scenario: Browser live hides phone preview
-- **WHEN** a browser turns 实时预览 on
-- **THEN** the phone preview widget is hidden and `/live.mjpeg` is raw JPEG
-
-#### Scenario: Last viewer restores phone preview
-- **WHEN** the browser turns it off or the last `/live.mjpeg` connection closes
-- **THEN** the phone preview returns if `previewEnabled`
-
-#### Scenario: RTMP ingest pauses LAN live
-- **WHEN** RTMP ingest is active
-- **THEN** LAN live pauses and phone preview may show
 
 #### Scenario: Non-MJPEG format is not live
 - **WHEN** the capture session is open on a non-MJPEG format

@@ -62,7 +62,6 @@
   "snapshotSaved": "静止画を保存しました",
   "segmentStatus": "第{index}本",
   "previewOffCanRecord": "プレビューOFFでも録画できます",
-  "previewLanLiveBusy": "ウェブでライブを表示中",
   "noSignal": "信号なし",
   "waitingSignal": "信号待ち",
   "segmentOff": "オフ",

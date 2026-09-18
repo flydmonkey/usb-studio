@@ -1,8 +1,6 @@
 package com.usbcamera.capture.usb_capture
 
 internal object MjpegJpeg {
-    fun hasSoi(bytes: ByteArray): Boolean = soiIndex(bytes) >= 0
-
     fun extract(bytes: ByteArray): ByteArray? {
         val start = soiIndex(bytes)
         if (start < 0) return null

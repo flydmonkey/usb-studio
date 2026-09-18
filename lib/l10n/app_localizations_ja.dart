@@ -207,9 +207,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get previewOffCanRecord => 'プレビューOFFでも録画できます';
 
   @override
-  String get previewLanLiveBusy => 'ウェブでライブを表示中';
-
-  @override
   String get noSignal => '信号なし';
 
   @override

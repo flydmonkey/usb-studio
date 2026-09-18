@@ -12,12 +12,4 @@ internal class JpegFrameFormatTest {
         assertEquals(1920 to 1080, JpegFrameFormat.inferSize(1920 * 1080 * 3 / 2))
         assertEquals(1280 to 720, JpegFrameFormat.inferSize(1280 * 720 * 4))
     }
-
-    @Test
-    fun jpegWinsEvenWhenSmallerThanNv21() {
-        val jpeg = ByteArray(200_000)
-        jpeg[0] = 0xFF.toByte()
-        jpeg[1] = 0xD8.toByte()
-        assertEquals(JpegFrameFormat.Kind.Jpeg, JpegFrameFormat.kind(jpeg, 1920, 1080))
-    }
 }

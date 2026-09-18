@@ -29,7 +29,6 @@ class _FakePlatform extends UsbCapturePlatform with MockPlatformInterfaceMixin {
   bool capturePermissionsGranted = true;
   int requestPermissionsCalls = 0;
   int notificationPermissionCalls = 0;
-  int openCalls = 0;
   bool recordingStarted = false;
   int lastSegmentMinutes = 10;
   bool streamStarted = false;
@@ -67,9 +66,7 @@ class _FakePlatform extends UsbCapturePlatform with MockPlatformInterfaceMixin {
   Future<CaptureStatus> getCaptureStatus() async => const CaptureStatus();
 
   @override
-  Future<void> open(String deviceId) async {
-    openCalls++;
-  }
+  Future<void> open(String deviceId) async {}
 
   @override
   Future<void> requestPermissions() async {
@@ -1031,89 +1028,6 @@ void main() {
     await tester.pump();
     expect(find.byType(UsbCapturePreview), findsOneWidget);
   });
-
-  testWidgets('lan live busy hides preview and shows overlay copy', (
-    tester,
-  ) async {
-    final fake = _FakePlatform(
-      devices: const [CaptureDevice(id: 'usb-1', name: '采集卡', hasAudio: true)],
-    );
-    UsbCapturePlatform.instance = fake;
-    await tester.pumpWidget(
-      localizedApp(
-        locale: const Locale('en'),
-        home: PreviewPage(
-          plugin: UsbCapture(),
-          profile: await fake.getPlatformProfile(),
-          television: false,
-          initialPrefs: const OperatorPrefs(httpLanEnabled: true),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    expect(find.byType(UsbCapturePreview), findsOneWidget);
-    fake.eventsController.add(
-      const CaptureEvent(type: CaptureEventType.lanLiveBusy, busy: true),
-    );
-    await tester.pump();
-    await tester.pump();
-    expect(find.byType(UsbCapturePreview), findsNothing);
-    expect(find.text('Webpage is watching live preview'), findsOneWidget);
-    fake.eventsController.add(
-      const CaptureEvent(type: CaptureEventType.lanLiveBusy, busy: false),
-    );
-    await tester.pump();
-    await tester.pump();
-    expect(find.byType(UsbCapturePreview), findsOneWidget);
-  });
-
-  testWidgets(
-    'lan live busy survives reconnect _connect without a new busy event',
-    (tester) async {
-      final fake = _FakePlatform(
-        devices: const [
-          CaptureDevice(id: 'usb-1', name: '采集卡', hasAudio: true),
-          CaptureDevice(id: 'usb-2', name: '采集卡2', hasAudio: true),
-        ],
-      );
-      UsbCapturePlatform.instance = fake;
-      await tester.pumpWidget(
-        localizedApp(
-          locale: const Locale('en'),
-          home: PreviewPage(
-            plugin: UsbCapture(),
-            profile: await fake.getPlatformProfile(),
-            television: false,
-            initialPrefs: const OperatorPrefs(httpLanEnabled: true),
-          ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump();
-      expect(find.byType(DropdownButton<String>), findsOneWidget);
-      await tester.tap(find.byType(DropdownButton<String>));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('采集卡').last);
-      await tester.pumpAndSettle();
-      expect(fake.openCalls, 1);
-      expect(find.byType(UsbCapturePreview), findsOneWidget);
-      fake.eventsController.add(
-        const CaptureEvent(type: CaptureEventType.lanLiveBusy, busy: true),
-      );
-      await tester.pump();
-      await tester.pump();
-      expect(find.byType(UsbCapturePreview), findsNothing);
-      expect(find.text('Webpage is watching live preview'), findsOneWidget);
-      await tester.tap(find.byType(DropdownButton<String>));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('采集卡2').last);
-      await tester.pumpAndSettle();
-      expect(fake.openCalls, 2);
-      expect(find.text('Webpage is watching live preview'), findsOneWidget);
-      expect(find.byType(UsbCapturePreview), findsNothing);
-    },
-  );
 
   testWidgets('settings hides lan playback when unsupported', (
     tester,

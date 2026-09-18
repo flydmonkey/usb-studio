@@ -207,9 +207,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get previewOffCanRecord => '미리보기가 꺼져도 녹화할 수 있습니다';
 
   @override
-  String get previewLanLiveBusy => '웹페이지에서 라이브를 보는 중';
-
-  @override
   String get noSignal => '신호 없음';
 
   @override

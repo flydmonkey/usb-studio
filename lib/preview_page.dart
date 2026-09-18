@@ -397,7 +397,6 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
           pictureControls: controls,
           selectedFormatId: formats.isEmpty ? null : formats.first.id,
           audioAvailable: device.hasAudio,
-          lanLiveBusy: _session.lanLiveBusy,
         );
         _error = null;
         _statusOf = (_) => device.name;
@@ -762,8 +761,6 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
         setState(() => _session = _session.copyWith(streaming: true));
       case CaptureEventType.streamStopped:
         setState(() => _session = _session.stopStreaming());
-      case CaptureEventType.lanLiveBusy:
-        setState(() => _session = _session.copyWith(lanLiveBusy: event.busy));
       case CaptureEventType.error:
         _onCaptureError(event);
     }
@@ -1155,10 +1152,6 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
                             ),
                           if (_session.sessionOpen && !_session.previewEnabled)
                             _PreviewOffState(television: _tv),
-                          if (_session.sessionOpen &&
-                              _session.previewEnabled &&
-                              _session.lanLiveBusy)
-                            _LanLiveBusyState(television: _tv),
                           if (!_session.sessionOpen)
                             _EmptyState(error: _error, television: _tv),
                           if (_session.previewActive &&
@@ -1384,29 +1377,6 @@ class _PreviewOffState extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         child: Text(
           AppLocalizations.of(context).previewOffCanRecord,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: television ? 28 : 18,
-            color: Colors.white70,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LanLiveBusyState extends StatelessWidget {
-  const _LanLiveBusyState({required this.television});
-
-  final bool television;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(
-          AppLocalizations.of(context).previewLanLiveBusy,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: television ? 28 : 18,

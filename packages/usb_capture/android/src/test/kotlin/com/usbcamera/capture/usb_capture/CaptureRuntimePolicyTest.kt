@@ -1,9 +1,7 @@
 package com.usbcamera.capture.usb_capture
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 internal class CaptureRuntimePolicyTest {
@@ -51,49 +49,6 @@ internal class CaptureRuntimePolicyTest {
                 streaming = false,
                 httpServing = true,
                 sessionOpen = false,
-            ),
-        )
-    }
-
-    @Test
-    fun formatLockRejectsLanMjpegPublishingLikeStreaming() {
-        assertEquals(
-            "streamFailed" to "streamInProgress",
-            CaptureRuntimePolicy.formatLock(
-                recording = false,
-                streaming = false,
-                lanLiveBusy = true,
-            ),
-        )
-        assertEquals(
-            "streamFailed" to "streamInProgress",
-            CaptureRuntimePolicy.formatLock(
-                recording = false,
-                streaming = true,
-                lanLiveBusy = false,
-            ),
-        )
-    }
-
-    @Test
-    fun formatLockAllowsWhenNotPublishing() {
-        assertNull(
-            CaptureRuntimePolicy.formatLock(
-                recording = false,
-                streaming = false,
-                lanLiveBusy = false,
-            ),
-        )
-    }
-
-    @Test
-    fun formatLockPrefersRecordingWhenRecording() {
-        assertEquals(
-            "recordingFailed" to "recordingInProgress",
-            CaptureRuntimePolicy.formatLock(
-                recording = true,
-                streaming = false,
-                lanLiveBusy = true,
             ),
         )
     }

@@ -34,7 +34,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageEn => 'English';
 
   @override
-  String get settingsTitle => '采集设置';
+  String get settingsTitle => '设置';
 
   @override
   String get close => '关闭';
@@ -59,6 +59,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get privacyPolicy => '隐私政策';
+
+  @override
+  String get termsOfUse => '使用协议';
 
   @override
   String get openSourceLicenses => '开源许可';
@@ -467,7 +470,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get languageEn => 'English';
 
   @override
-  String get settingsTitle => '擷取設定';
+  String get settingsTitle => '設定';
 
   @override
   String get close => '關閉';
@@ -492,6 +495,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get privacyPolicy => '隱私權政策';
+
+  @override
+  String get termsOfUse => '使用協議';
 
   @override
   String get openSourceLicenses => '開放原始碼授權';

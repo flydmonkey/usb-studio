@@ -74,11 +74,19 @@ The recording list SHALL use the same source and ids as the in-app library (albu
 - **THEN** the server SHALL return `404` without affecting other list entries
 
 ### Requirement: Live MJPEG when capture card is connected
-When a capture session is open, the capture format is MJPEG, and 局域网播放 is enabled, the server SHALL publish silent live MJPEG by copying JPEG frames from the UVC callback (no H.264 transcode). If the USB capture card detaches or the session ends, live MJPEG SHALL stop updating while VOD routes remain available. If the current format is not MJPEG, the page SHALL tell the operator to switch to MJPEG instead of showing a broken live picture.
+When a capture session is open, the capture format is MJPEG, and 局域网播放 is enabled, the server SHALL publish silent live MJPEG by copying JPEG frames from the UVC callback (no H.264 transcode) **only while at least one `GET /live.mjpeg` reader exists**. With zero live readers (home page open, 实时预览 off, or only VOD/download), the app MUST NOT convert UVC frames to JPEG for LAN. Phone preview SHALL stay attached. If the USB capture card detaches or the session ends, live MJPEG SHALL stop updating while VOD routes remain available. If the current format is not MJPEG, the page SHALL tell the operator to switch to MJPEG instead of showing a broken live picture.
 
 #### Scenario: Live appears after card connects
 - **WHEN** 局域网播放 is already on, a browser has the home page open with 实时预览 switched on, and the operator opens a healthy MJPEG capture session
 - **THEN** the shared player SHALL begin showing silent live video
+
+#### Scenario: Idle LAN does not encode live frames
+- **WHEN** 局域网播放 is on and no client is reading `/live.mjpeg`
+- **THEN** the capture pipeline MUST NOT JPEG-encode or NV21-callback for LAN live
+
+#### Scenario: Last live viewer stops encoding
+- **WHEN** the last `/live.mjpeg` connection closes
+- **THEN** LAN JPEG encode SHALL stop and phone preview SHALL continue if it was showing
 
 #### Scenario: Non-MJPEG format is not live
 - **WHEN** the capture session is open on a non-MJPEG format
@@ -89,7 +97,7 @@ When a capture session is open, the capture format is MJPEG, and 局域网播放
 - **THEN** live MJPEG SHALL stop but `/` and `/vod/<id>` SHALL continue to work for existing recordings
 
 ### Requirement: Coexist with local recording and RTMP ingest
-Starting or stopping 局域网播放 MUST NOT stop local segmented recording or RTMP ingest, and starting recording or ingest MUST NOT stop the HTTP server. LAN-only live SHALL NOT start a MediaCodec session. When RTMP ingest is active, the UVC frame callback SHALL switch to NV21 for ingest and LAN MJPEG SHALL pause until ingest stops. Changing capture format while LAN MJPEG is publishing SHALL be rejected with a readable error, consistent with streaming in progress. Recording quality MAY still be changed while LAN MJPEG is publishing if recording and ingest are idle.
+Starting or stopping 局域网播放 MUST NOT stop local segmented recording or RTMP ingest, and starting recording or ingest MUST NOT stop the HTTP server. LAN-only live SHALL NOT start a MediaCodec session. When RTMP ingest is active, the UVC frame callback SHALL switch to NV21 for ingest and LAN MJPEG SHALL pause until ingest stops. Changing capture format while LAN MJPEG is publishing SHALL be rejected with a readable error, consistent with streaming in progress. HTTP server up with zero live viewers MUST NOT lock format. Recording quality MAY still be changed while LAN MJPEG is publishing if recording and ingest are idle.
 
 #### Scenario: HTTP with recording and RTMP
 - **WHEN** 局域网播放, local segmented recording, and RTMP ingest are all active
@@ -98,6 +106,10 @@ Starting or stopping 局域网播放 MUST NOT stop local segmented recording or 
 #### Scenario: Format locked during live LAN MJPEG
 - **WHEN** live LAN MJPEG is publishing and the operator tries to change format
 - **THEN** the app MUST keep the current format and explain that streaming is in progress
+
+#### Scenario: Format unlocked when LAN has no live viewers
+- **WHEN** 局域网播放 is on, no client is reading `/live.mjpeg`, and recording and ingest are idle
+- **THEN** the operator MAY change capture format
 
 ### Requirement: Foreground service while LAN playback is on
 While 局域网播放 is enabled and the HTTP server is running, the app SHALL keep the existing capture foreground service (or equivalent) active so the LAN URL remains reachable after the screen locks. The notification text SHALL mention 局域网播放 when the server is running.

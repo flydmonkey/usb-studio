@@ -7,4 +7,27 @@ internal object CaptureRuntimePolicy {
         httpServing: Boolean,
         sessionOpen: Boolean,
     ): Boolean = !recording && !streaming && !httpServing && !sessionOpen
+
+    fun shouldEncodeLanLive(
+        httpServing: Boolean,
+        liveViewers: Int,
+        streaming: Boolean,
+    ): Boolean = httpServing && liveViewers > 0 && !streaming
+
+    /**
+     * Rejects setFormat while recording, RTMP ingest, or LAN MJPEG is publishing.
+     * HTTP server up with zero viewers must not lock.
+     */
+    fun formatLock(
+        recording: Boolean,
+        streaming: Boolean,
+        lanLiveBusy: Boolean,
+    ): Pair<String, String>? {
+        if (!recording && !streaming && !lanLiveBusy) return null
+        return if ((streaming || lanLiveBusy) && !recording) {
+            "streamFailed" to "streamInProgress"
+        } else {
+            "recordingFailed" to "recordingInProgress"
+        }
+    }
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -146,11 +147,7 @@ class _FakePlatform extends UsbCapturePlatform with MockPlatformInterfaceMixin {
   @override
   Future<Map<String, dynamic>> startHttpServer() async {
     httpServerStarted = true;
-    return {
-      'url': 'http://192.168.1.8:8080/',
-      'port': 8080,
-      'running': true,
-    };
+    return {'url': 'http://192.168.1.8:8080/', 'port': 8080, 'running': true};
   }
 
   @override
@@ -305,6 +302,18 @@ Widget localizedApp({
   );
 }
 
+int _textLineCount(WidgetTester tester, Finder finder) {
+  final paragraph = tester.renderObject<RenderParagraph>(finder);
+  return paragraph
+      .getBoxesForSelection(
+        TextSelection(
+          baseOffset: 0,
+          extentOffset: paragraph.text.toPlainText().length,
+        ),
+      )
+      .length;
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -391,29 +400,30 @@ void main() {
     expect(find.textContaining('请先连接采集卡'), findsWidgets);
   });
 
-  testWidgets('header is not a live camcorder before a capture card is connected', (
-    tester,
-  ) async {
-    final fake = _FakePlatform();
-    UsbCapturePlatform.instance = fake;
-    await tester.pumpWidget(
-      localizedApp(
-        home: PreviewPage(
-          plugin: UsbCapture(),
-          profile: await fake.getPlatformProfile(),
-          television: false,
+  testWidgets(
+    'header is not a live camcorder before a capture card is connected',
+    (tester) async {
+      final fake = _FakePlatform();
+      UsbCapturePlatform.instance = fake;
+      await tester.pumpWidget(
+        localizedApp(
+          home: PreviewPage(
+            plugin: UsbCapture(),
+            profile: await fake.getPlatformProfile(),
+            television: false,
+          ),
         ),
-      ),
-    );
-    await tester.pump();
-    expect(find.text('请插入 USB 采集卡'), findsWidgets);
-    expect(find.byIcon(Icons.videocam), findsNothing);
-    expect(find.byIcon(Icons.usb_off), findsOneWidget);
-    expect(
-      tester.widget<Icon>(find.byIcon(Icons.usb_off)).color,
-      Colors.white70,
-    );
-  });
+      );
+      await tester.pump();
+      expect(find.text('请插入 USB 采集卡'), findsWidgets);
+      expect(find.byIcon(Icons.videocam), findsNothing);
+      expect(find.byIcon(Icons.usb_off), findsOneWidget);
+      expect(
+        tester.widget<Icon>(find.byIcon(Icons.usb_off)).color,
+        Colors.white70,
+      );
+    },
+  );
 
   testWidgets('can start recording after turning preview off', (tester) async {
     final fake = _FakePlatform(
@@ -782,10 +792,16 @@ void main() {
     await tester.ensureVisible(find.byKey(const Key('stream-bitrate')));
     expect(find.text('推流码率'), findsOneWidget);
     expect(find.text('2 Mbps'), findsOneWidget);
-    expect(find.text('开启预览'), findsNothing);
+    expect(find.text('开启预览'), findsOneWidget);
     expect(find.text('预览'), findsWidgets);
     expect(find.text('保存位置'), findsOneWidget);
     expect(find.text('相册'), findsWidgets);
+    expect(find.byKey(const Key('settings-group-language')), findsOneWidget);
+    expect(find.byKey(const Key('settings-group-record')), findsOneWidget);
+    expect(find.byKey(const Key('settings-group-preview')), findsOneWidget);
+    expect(find.byKey(const Key('settings-group-stream')), findsOneWidget);
+    expect(find.byKey(const Key('settings-group-lan')), findsOneWidget);
+    expect(find.byKey(const Key('settings-group-legal')), findsOneWidget);
     expect(
       tester.getTopLeft(find.text('录制').first).dy,
       lessThan(tester.getTopLeft(find.text('推流地址')).dy),
@@ -794,6 +810,89 @@ void main() {
       tester.getTopLeft(find.text('预览').first).dy,
       lessThan(tester.getTopLeft(find.text('局域网播放').first).dy),
     );
+    expect(
+      tester.getTopLeft(find.byKey(const Key('settings-group-language'))).dy,
+      lessThan(
+        tester.getTopLeft(find.byKey(const Key('settings-group-record'))).dy,
+      ),
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const Key('settings-group-record'))).dy,
+      lessThan(
+        tester.getTopLeft(find.byKey(const Key('settings-group-preview'))).dy,
+      ),
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const Key('settings-group-preview'))).dy,
+      lessThan(
+        tester.getTopLeft(find.byKey(const Key('settings-group-stream'))).dy,
+      ),
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const Key('settings-group-lan'))).dy,
+      lessThan(
+        tester.getTopLeft(find.byKey(const Key('settings-group-legal'))).dy,
+      ),
+    );
+  });
+
+  testWidgets('recording quality option stays on one line on a phone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final fake = _FakePlatform();
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.byTooltip('设置'));
+    await tester.pump();
+    final quality = find.text('标准（约 60MB/分钟）');
+    expect(quality, findsWidgets);
+    expect(_textLineCount(tester, quality.first), 1);
+    await tester.ensureVisible(quality.first);
+    await tester.pumpAndSettle();
+    await tester.tap(quality.first);
+    await tester.pumpAndSettle();
+    expect(_textLineCount(tester, find.text('高码率（约 120MB/分钟）').last), 1);
+  });
+
+  testWidgets('settings keeps the selected recording quality', (tester) async {
+    final fake = _FakePlatform();
+    UsbCapturePlatform.instance = fake;
+    await tester.pumpWidget(
+      localizedApp(
+        home: PreviewPage(
+          plugin: UsbCapture(),
+          profile: await fake.getPlatformProfile(),
+          television: false,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.byTooltip('设置'));
+    await tester.pumpAndSettle();
+    final current = find.text('标准（约 60MB/分钟）');
+    await tester.ensureVisible(current.first);
+    await tester.pumpAndSettle();
+    await tester.tap(current.first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('高码率（约 120MB/分钟）').last);
+    await tester.pumpAndSettle();
+    expect(find.text('高码率（约 120MB/分钟）'), findsOneWidget);
+    expect(find.text('标准（约 60MB/分钟）'), findsNothing);
   });
 
   testWidgets(
@@ -873,7 +972,7 @@ void main() {
       await tester.tap(find.byTooltip('设置'));
       await tester.pumpAndSettle();
       expect(find.byTooltip('关闭'), findsOneWidget);
-      expect(tester.getTopLeft(find.text('采集设置')).dy, greaterThanOrEqualTo(48));
+      expect(tester.getTopLeft(find.text('设置')).dy, greaterThanOrEqualTo(48));
       expect(find.textContaining('亮度'), findsOneWidget);
       await tester.drag(
         find.byType(SingleChildScrollView).last,
@@ -881,7 +980,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byTooltip('关闭'), findsOneWidget);
-      expect(tester.getTopLeft(find.text('采集设置')).dy, greaterThanOrEqualTo(48));
+      expect(tester.getTopLeft(find.text('设置')).dy, greaterThanOrEqualTo(48));
       await tester.tap(find.byTooltip('关闭'));
       await tester.pumpAndSettle();
       expect(find.text('录制分段'), findsNothing);
@@ -948,10 +1047,7 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
     expect(find.textContaining('http://'), findsOneWidget);
-    expect(
-      find.text('同一 Wi-Fi 下打开此地址即可播放；未加密'),
-      findsOneWidget,
-    );
+    expect(find.text('同一 Wi-Fi 下打开此地址即可播放；未加密'), findsOneWidget);
     expect(fake.httpServerStarted, isTrue);
   });
 
@@ -1029,9 +1125,7 @@ void main() {
     expect(find.byType(UsbCapturePreview), findsOneWidget);
   });
 
-  testWidgets('settings hides lan playback when unsupported', (
-    tester,
-  ) async {
+  testWidgets('settings hides lan playback when unsupported', (tester) async {
     final fake = _FakePlatform(supported: false);
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
@@ -1184,7 +1278,9 @@ void main() {
     expect(fake.lastStreamUrl, 'rtmp://live.example/live/stream');
   });
 
-  testWidgets('settings can change stream bitrate independently', (tester) async {
+  testWidgets('settings can change stream bitrate independently', (
+    tester,
+  ) async {
     final fake = _FakePlatform();
     UsbCapturePlatform.instance = fake;
     await tester.pumpWidget(
@@ -1429,21 +1525,30 @@ void main() {
     await tester.pump();
     await tester.tap(find.byTooltip('设置'));
     await tester.pumpAndSettle();
-    final about = find.byKey(const Key('about-open'));
-    await tester.ensureVisible(about);
+    expect(find.byKey(const Key('about-open')), findsNothing);
+    expect(find.text('关于'), findsNothing);
+    final legal = find.byKey(const Key('settings-group-legal'));
+    final privacy = find.byKey(const Key('settings-privacy-policy'));
+    final terms = find.byKey(const Key('settings-terms-of-use'));
+    await tester.ensureVisible(legal);
     await tester.pumpAndSettle();
-    expect(tester.widget<ListTile>(about).title, isA<Text>());
-    expect((tester.widget<ListTile>(about).title as Text).data, '关于');
-    expect(find.descendant(of: about, matching: find.byIcon(Icons.chevron_right)), findsNothing);
-    await tester.tap(about);
+    expect(legal, findsOneWidget);
+    expect(find.descendant(of: legal, matching: privacy), findsOneWidget);
+    expect(find.descendant(of: legal, matching: terms), findsOneWidget);
+    expect(tester.widget<ListTile>(privacy).title, isA<Text>());
+    expect((tester.widget<ListTile>(privacy).title as Text).data, '隐私政策');
+    expect(
+      find.descendant(of: privacy, matching: find.byIcon(Icons.chevron_right)),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(terms);
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('about-product-name')), findsOneWidget);
-    expect(find.textContaining('flydmonkey'), findsOneWidget);
-    expect(find.textContaining('shunsora@outlook.com'), findsNothing);
-    expect(find.textContaining('1.0.0'), findsWidgets);
-    expect(find.byKey(const Key('about-privacy-policy')), findsOneWidget);
-    expect(find.text('隐私政策'), findsOneWidget);
-    expect(find.text('开源许可'), findsOneWidget);
+    expect(tester.widget<ListTile>(terms).title, isA<Text>());
+    expect((tester.widget<ListTile>(terms).title as Text).data, '使用协议');
+    expect(
+      find.descendant(of: terms, matching: find.byIcon(Icons.chevron_right)),
+      findsOneWidget,
+    );
   });
 
   testWidgets('recording requests notification permission', (tester) async {

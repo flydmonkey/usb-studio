@@ -260,7 +260,8 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
       if (!proceed) {
         if (mounted) {
           setState(
-            () => _error = const CaptureError(CaptureErrorCode.permissionDenied),
+            () =>
+                _error = const CaptureError(CaptureErrorCode.permissionDenied),
           );
         }
         return false;
@@ -917,60 +918,11 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
     } catch (_) {}
   }
 
-  Future<void> _openAbout() async {
-    final television = _tv;
-    final version = _appVersion;
-    await showDialog<void>(
+  void _openTermsOfUse() {
+    showLicensePage(
       context: context,
-      builder: (context) {
-        final l10n = AppLocalizations.of(context);
-        final textStyle = TextStyle(fontSize: television ? 20 : 16);
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1A1A1A),
-          title: Text(
-            'USB Studio',
-            key: const Key('about-product-name'),
-            style: TextStyle(
-              fontSize: television ? 24 : 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (version.isNotEmpty) ...[
-                Text(l10n.appVersion(version), style: textStyle),
-                SizedBox(height: television ? 12 : 8),
-              ],
-              Text(l10n.aboutDeveloper(playDeveloperName), style: textStyle),
-              SizedBox(height: television ? 16 : 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  key: const Key('about-privacy-policy'),
-                  onPressed: _openPrivacyPolicy,
-                  child: Text(l10n.privacyPolicy),
-                ),
-              ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  key: const Key('about-licenses'),
-                  onPressed: () {
-                    showLicensePage(
-                      context: context,
-                      applicationName: 'USB Studio',
-                      applicationVersion: version,
-                    );
-                  },
-                  child: Text(l10n.openSourceLicenses),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+      applicationName: 'USB Studio',
+      applicationVersion: _appVersion,
     );
   }
 
@@ -1015,12 +967,18 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
                   ),
                   Flexible(
                     child: SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(24, 8, 24, _tv ? 48 : 24),
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, _tv ? 48 : 24),
                       child: _SettingsSheet(
                         television: _tv,
                         session: _session,
-                        onFormat: _setFormat,
-                        onQuality: _setQuality,
+                        onFormat: (id) async {
+                          await _setFormat(id);
+                          setModal(() {});
+                        },
+                        onQuality: (preset) async {
+                          await _setQuality(preset);
+                          setModal(() {});
+                        },
                         onVolume: (volume) async {
                           await _setVolume(volume);
                           setModal(() {});
@@ -1029,8 +987,14 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
                           await _setDelay(delay);
                           setModal(() {});
                         },
-                        onPicture: _setPicture,
-                        onResetPicture: _resetPicture,
+                        onPicture: (control, value) async {
+                          await _setPicture(control, value);
+                          setModal(() {});
+                        },
+                        onResetPicture: () async {
+                          await _resetPicture();
+                          setModal(() {});
+                        },
                         onSegment: (minutes) async {
                           await _setSegment(minutes);
                           setModal(() {});
@@ -1078,12 +1042,12 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
                         prefs: _prefs,
                         customFolderSupported:
                             widget.profile.customSaveFolderSupported,
-                        rtmpStreamSupported:
-                            widget.profile.rtmpStreamSupported,
+                        rtmpStreamSupported: widget.profile.rtmpStreamSupported,
                         httpLanSupported: widget.profile.httpLanSupported,
                         httpUrl: _httpUrl,
                         httpError: _httpError,
-                        onAbout: _openAbout,
+                        onPrivacyPolicy: _openPrivacyPolicy,
+                        onTermsOfUse: _openTermsOfUse,
                       ),
                     ),
                   ),
@@ -1118,7 +1082,8 @@ class _PreviewPageState extends State<PreviewPage> with WidgetsBindingObserver {
               children: [
                 if (!_session.immersive)
                   _Header(
-                    status: _statusOf?.call(_l10n) ??
+                    status:
+                        _statusOf?.call(_l10n) ??
                         (_error == null
                             ? 'USB Studio'
                             : localizeCaptureError(_l10n, _error!)),
@@ -1275,14 +1240,10 @@ class _Header extends StatelessWidget {
     }
     return Row(
       children: [
-        Icon(
-          statusIcon,
-          color: statusColor,
-          size: television ? 36 : 24,
-        ),
+        Icon(statusIcon, color: statusColor, size: television ? 36 : 24),
         const SizedBox(width: 12),
         Expanded(
-            child: Text(
+          child: Text(
             headerTitle(status: status, deviceName: deviceName),
             style: TextStyle(fontSize: television ? 22 : 16),
             maxLines: 1,
@@ -1587,7 +1548,8 @@ class _SettingsSheet extends StatelessWidget {
     required this.onLocaleMode,
     required this.rtmpStreamSupported,
     required this.httpLanSupported,
-    required this.onAbout,
+    required this.onPrivacyPolicy,
+    required this.onTermsOfUse,
     this.httpUrl,
     this.httpError,
   });
@@ -1615,7 +1577,8 @@ class _SettingsSheet extends StatelessWidget {
   final ValueChanged<LocaleMode> onLocaleMode;
   final bool rtmpStreamSupported;
   final bool httpLanSupported;
-  final VoidCallback onAbout;
+  final VoidCallback onPrivacyPolicy;
+  final VoidCallback onTermsOfUse;
   final String? httpUrl;
   final String? httpError;
 
@@ -1630,216 +1593,240 @@ class _SettingsSheet extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _SettingsSection(
-          title: l10n.language,
+        _SettingsGroup(
+          key: const Key('settings-group-language'),
           television: television,
           children: [
-            _SettingsDropdown<LocaleMode>(
+            _SettingsItem(
               television: television,
-              value: prefs.localeMode,
-              items: [
-                DropdownMenuItem(
-                  value: LocaleMode.system,
-                  child: Text(l10n.languageSystem),
-                ),
-                DropdownMenuItem(
-                  value: LocaleMode.zhHans,
-                  child: Text(l10n.languageZhHans),
-                ),
-                DropdownMenuItem(
-                  value: LocaleMode.zhHant,
-                  child: Text(l10n.languageZhHant),
-                ),
-                DropdownMenuItem(
-                  value: LocaleMode.ja,
-                  child: Text(l10n.languageJa),
-                ),
-                DropdownMenuItem(
-                  value: LocaleMode.ko,
-                  child: Text(l10n.languageKo),
-                ),
-                DropdownMenuItem(
-                  value: LocaleMode.en,
-                  child: Text(l10n.languageEn),
-                ),
-              ],
-              onChanged: (mode) {
-                if (mode != null) onLocaleMode(mode);
-              },
+              title: l10n.language,
+              trailing: _SettingsDropdown<LocaleMode>(
+                television: television,
+                value: prefs.localeMode,
+                items: [
+                  DropdownMenuItem(
+                    value: LocaleMode.system,
+                    child: Text(l10n.languageSystem),
+                  ),
+                  DropdownMenuItem(
+                    value: LocaleMode.zhHans,
+                    child: Text(l10n.languageZhHans),
+                  ),
+                  DropdownMenuItem(
+                    value: LocaleMode.zhHant,
+                    child: Text(l10n.languageZhHant),
+                  ),
+                  DropdownMenuItem(
+                    value: LocaleMode.ja,
+                    child: Text(l10n.languageJa),
+                  ),
+                  DropdownMenuItem(
+                    value: LocaleMode.ko,
+                    child: Text(l10n.languageKo),
+                  ),
+                  DropdownMenuItem(
+                    value: LocaleMode.en,
+                    child: Text(l10n.languageEn),
+                  ),
+                ],
+                onChanged: (mode) {
+                  if (mode != null) onLocaleMode(mode);
+                },
+              ),
             ),
           ],
         ),
-        _SettingsSection(
-          title: l10n.sectionRecord,
+        _SettingsGroup(
+          key: const Key('settings-group-record'),
           television: television,
+          title: l10n.sectionRecord,
           children: [
-            Text(l10n.recordSegment),
-            _SettingsDropdown<int>(
+            _SettingsItem(
               television: television,
-              value: SegmentPolicy.normalizeMinutes(session.segmentMinutes),
-              items: [
-                for (final minutes in SegmentPolicy.allowedMinutes)
-                  DropdownMenuItem(
-                    value: minutes,
-                    child: Text(segmentOptionLabel(l10n, minutes)),
-                  ),
-              ],
-              onChanged: session.isRecording
-                  ? null
-                  : (minutes) {
-                      if (minutes != null) onSegment(minutes);
-                    },
-            ),
-            Text(l10n.recordQuality),
-            _SettingsDropdown<QualityPreset>(
-              television: television,
-              value: session.quality,
-              items: [
-                for (final preset in QualityPreset.values)
-                  DropdownMenuItem(
-                    value: preset,
-                    child: Text(qualityLabel(l10n, preset)),
-                  ),
-              ],
-              onChanged: (session.isRecording || session.isStreaming)
-                  ? null
-                  : (preset) {
-                      if (preset != null) onQuality(preset);
-                    },
-            ),
-            if (customFolderSupported) ...[
-              Text(l10n.saveLocation),
-              _SettingsDropdown<String>(
+              title: l10n.recordSegment,
+              trailing: _SettingsDropdown<int>(
                 television: television,
-                value: saveValue,
+                value: SegmentPolicy.normalizeMinutes(session.segmentMinutes),
                 items: [
-                  DropdownMenuItem(
-                    value: SaveLocation.gallery,
-                    child: Text(saveLocationLabel(l10n, SaveLocation.gallery)),
-                  ),
-                  DropdownMenuItem(
-                    value: SaveLocation.movies,
-                    child: Text(saveLocationLabel(l10n, SaveLocation.movies)),
-                  ),
-                  DropdownMenuItem(
-                    value: SaveLocation.downloads,
-                    child: Text(
-                      saveLocationLabel(l10n, SaveLocation.downloads),
+                  for (final minutes in SegmentPolicy.allowedMinutes)
+                    DropdownMenuItem(
+                      value: minutes,
+                      child: Text(segmentOptionLabel(l10n, minutes)),
                     ),
-                  ),
-                  DropdownMenuItem(
-                    value: SaveLocation.custom,
-                    child: Text(
-                      saveLocationLabel(
-                        l10n,
-                        SaveLocation.custom,
-                        folderName: prefs.saveFolderName,
+                ],
+                onChanged: session.isRecording
+                    ? null
+                    : (minutes) {
+                        if (minutes != null) onSegment(minutes);
+                      },
+              ),
+            ),
+            _SettingsItem(
+              television: television,
+              title: l10n.recordQuality,
+              trailing: _SettingsDropdown<QualityPreset>(
+                television: television,
+                value: session.quality,
+                items: [
+                  for (final preset in QualityPreset.values)
+                    DropdownMenuItem(
+                      value: preset,
+                      child: Text(qualityLabel(l10n, preset)),
+                    ),
+                ],
+                onChanged: (session.isRecording || session.isStreaming)
+                    ? null
+                    : (preset) {
+                        if (preset != null) onQuality(preset);
+                      },
+              ),
+            ),
+            if (customFolderSupported)
+              _SettingsItem(
+                television: television,
+                title: l10n.saveLocation,
+                trailing: _SettingsDropdown<String>(
+                  television: television,
+                  value: saveValue,
+                  items: [
+                    DropdownMenuItem(
+                      value: SaveLocation.gallery,
+                      child: Text(
+                        saveLocationLabel(l10n, SaveLocation.gallery),
                       ),
                     ),
-                  ),
-                ],
-                onChanged: (kind) {
-                  if (kind == null) return;
-                  if (kind == SaveLocation.custom) {
-                    onPickFolder();
-                  } else {
-                    onSaveKind(kind);
-                  }
-                },
-              ),
-              if (saveKind == SaveLocation.custom)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: onPickFolder,
-                    child: Text(l10n.changeFolder),
-                  ),
+                    DropdownMenuItem(
+                      value: SaveLocation.movies,
+                      child: Text(saveLocationLabel(l10n, SaveLocation.movies)),
+                    ),
+                    DropdownMenuItem(
+                      value: SaveLocation.downloads,
+                      child: Text(
+                        saveLocationLabel(l10n, SaveLocation.downloads),
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: SaveLocation.custom,
+                      child: Text(
+                        saveLocationLabel(
+                          l10n,
+                          SaveLocation.custom,
+                          folderName: prefs.saveFolderName,
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (kind) {
+                    if (kind == null) return;
+                    if (kind == SaveLocation.custom) {
+                      onPickFolder();
+                    } else {
+                      onSaveKind(kind);
+                    }
+                  },
                 ),
-            ],
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                l10n.autoRecord,
-                style: TextStyle(fontSize: television ? 20 : 16),
+                child: saveKind == SaveLocation.custom
+                    ? Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: onPickFolder,
+                          child: Text(l10n.changeFolder),
+                        ),
+                      )
+                    : null,
               ),
+            _SettingsSwitchTile(
+              television: television,
+              title: l10n.autoRecord,
               value: session.autoRecord,
               onChanged: onAutoRecord,
             ),
           ],
         ),
-        _SettingsSection(
-          title: l10n.sectionPreview,
+        _SettingsGroup(
+          key: const Key('settings-group-preview'),
           television: television,
-          trailing: Switch(
-            value: session.previewEnabled,
-            onChanged: onPreviewEnabled,
-          ),
+          title: l10n.sectionPreview,
           children: [
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                l10n.previewSound,
-                style: TextStyle(fontSize: television ? 20 : 16),
-              ),
+            _SettingsSwitchTile(
+              itemKey: const Key('settings-preview-enabled'),
+              television: television,
+              title: l10n.previewEnabled,
+              value: session.previewEnabled,
+              onChanged: onPreviewEnabled,
+            ),
+            _SettingsSwitchTile(
+              television: television,
+              title: l10n.previewSound,
               value: !session.previewMuted,
               onChanged: onPreviewSound,
             ),
-            Text(l10n.monitorVolume((session.monitorVolume * 100).round())),
-            Slider(value: session.monitorVolume, onChanged: onVolume),
-            Text(l10n.monitorDelay),
-            _SettingsChoiceRow(
+            _SettingsItem(
               television: television,
-              value: session.monitorDelayMs,
-              options: const [0, 50, 100, 200],
-              labelOf: (delay) => '${delay}ms',
-              onSelected: onDelay,
+              title: l10n.monitorVolume((session.monitorVolume * 100).round()),
+              child: Slider(value: session.monitorVolume, onChanged: onVolume),
+            ),
+            _SettingsItem(
+              television: television,
+              title: l10n.monitorDelay,
+              child: _SettingsChoiceRow(
+                television: television,
+                value: session.monitorDelayMs,
+                options: const [0, 50, 100, 200],
+                labelOf: (delay) => '${delay}ms',
+                onSelected: onDelay,
+              ),
             ),
           ],
         ),
         if (session.formats.isNotEmpty || session.pictureControls.isNotEmpty)
-          _SettingsSection(
-            title: l10n.sectionPicture,
+          _SettingsGroup(
+            key: const Key('settings-group-picture'),
             television: television,
+            title: l10n.sectionPicture,
             children: [
-              if (session.formats.isNotEmpty) ...[
-                Text(l10n.videoFormat),
-                _SettingsDropdown<String>(
+              if (session.formats.isNotEmpty)
+                _SettingsItem(
                   television: television,
-                  value:
-                      session.formats.any(
-                        (item) => item.id == session.selectedFormatId,
-                      )
-                      ? session.selectedFormatId
-                      : session.formats.first.id,
-                  items: [
-                    for (final format in session.formats)
-                      DropdownMenuItem(
-                        value: format.id,
-                        child: Text(format.label),
-                      ),
-                  ],
-                  onChanged: (session.isRecording || session.isStreaming)
-                      ? null
-                      : (id) {
-                          if (id != null) onFormat(id);
-                        },
+                  title: l10n.videoFormat,
+                  trailing: _SettingsDropdown<String>(
+                    television: television,
+                    value:
+                        session.formats.any(
+                          (item) => item.id == session.selectedFormatId,
+                        )
+                        ? session.selectedFormatId
+                        : session.formats.first.id,
+                    items: [
+                      for (final format in session.formats)
+                        DropdownMenuItem(
+                          value: format.id,
+                          child: Text(format.label),
+                        ),
+                    ],
+                    onChanged: (session.isRecording || session.isStreaming)
+                        ? null
+                        : (id) {
+                            if (id != null) onFormat(id);
+                          },
+                  ),
                 ),
-              ],
               if (session.pictureControls.isNotEmpty) ...[
-                for (final control in session.pictureControls) ...[
-                  Text(
-                    '${pictureControlLabel(l10n, control.id)}  ${control.value}',
-                  ),
-                  Slider(
-                    min: control.min.toDouble(),
-                    max: control.max.toDouble(),
-                    value: control.value.toDouble().clamp(
-                      control.min.toDouble(),
-                      control.max.toDouble(),
+                for (final control in session.pictureControls)
+                  _SettingsItem(
+                    television: television,
+                    title:
+                        '${pictureControlLabel(l10n, control.id)}  ${control.value}',
+                    child: Slider(
+                      min: control.min.toDouble(),
+                      max: control.max.toDouble(),
+                      value: control.value.toDouble().clamp(
+                        control.min.toDouble(),
+                        control.max.toDouble(),
+                      ),
+                      onChanged: (value) => onPicture(control, value.round()),
                     ),
-                    onChanged: (value) => onPicture(control, value.round()),
                   ),
-                ],
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -1851,9 +1838,10 @@ class _SettingsSheet extends StatelessWidget {
             ],
           ),
         if (rtmpStreamSupported)
-          _SettingsSection(
-            title: l10n.sectionStream,
+          _SettingsGroup(
+            key: const Key('settings-group-stream'),
             television: television,
+            title: l10n.sectionStream,
             children: [
               _RtmpUrlFields(
                 television: television,
@@ -1861,78 +1849,103 @@ class _SettingsSheet extends StatelessWidget {
                 onRtmpServer: onRtmpServer,
                 onRtmpKey: onRtmpKey,
               ),
-              Text(l10n.streamBitrate),
-              _SettingsDropdown<StreamBitrate>(
-                key: const Key('stream-bitrate'),
+              _SettingsItem(
                 television: television,
-                value: prefs.streamBitrate,
-                items: [
-                  for (final bitrate in StreamBitrate.values)
-                    DropdownMenuItem(
-                      value: bitrate,
-                      child: Text(streamBitrateLabel(l10n, bitrate)),
-                    ),
-                ],
-                onChanged: session.isStreaming
-                    ? null
-                    : (bitrate) {
-                        if (bitrate != null) onStreamBitrate(bitrate);
-                      },
+                title: l10n.streamBitrate,
+                trailing: _SettingsDropdown<StreamBitrate>(
+                  key: const Key('stream-bitrate'),
+                  television: television,
+                  value: prefs.streamBitrate,
+                  items: [
+                    for (final bitrate in StreamBitrate.values)
+                      DropdownMenuItem(
+                        value: bitrate,
+                        child: Text(streamBitrateLabel(l10n, bitrate)),
+                      ),
+                  ],
+                  onChanged: session.isStreaming
+                      ? null
+                      : (bitrate) {
+                          if (bitrate != null) onStreamBitrate(bitrate);
+                        },
+                ),
               ),
             ],
           ),
         if (httpLanSupported)
-          _SettingsSection(
-            title: l10n.sectionLan,
+          _SettingsGroup(
+            key: const Key('settings-group-lan'),
             television: television,
-            trailing: Switch(
-              key: const Key('lan-playback'),
-              value: prefs.httpLanEnabled,
-              onChanged: onHttpLan,
-            ),
             children: [
-              if (prefs.httpLanEnabled) ...[
-                if (httpUrl != null)
-                  TextFormField(
-                    readOnly: true,
-                    initialValue: httpUrl,
-                    style: TextStyle(fontSize: television ? 18 : 14),
-                    decoration: _settingsFieldDecoration().copyWith(
-                      suffixIcon: IconButton(
-                        tooltip: l10n.copyUrl,
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: httpUrl!));
-                        },
-                        icon: Icon(Icons.copy, size: television ? 28 : 20),
-                      ),
-                    ),
-                  )
-                else
-                  Text(
-                    httpError ?? l10n.connectWifi,
+              _SettingsSwitchTile(
+                itemKey: const Key('lan-playback'),
+                television: television,
+                title: l10n.lanPlayback,
+                value: prefs.httpLanEnabled,
+                onChanged: onHttpLan,
+              ),
+              if (prefs.httpLanEnabled)
+                _SettingsItem(
+                  television: television,
+                  title: '',
+                  child: httpUrl != null
+                      ? TextFormField(
+                          readOnly: true,
+                          initialValue: httpUrl,
+                          style: TextStyle(fontSize: television ? 18 : 14),
+                          decoration: _settingsFieldDecoration().copyWith(
+                            suffixIcon: IconButton(
+                              tooltip: l10n.copyUrl,
+                              onPressed: () {
+                                Clipboard.setData(
+                                  ClipboardData(text: httpUrl!),
+                                );
+                              },
+                              icon: Icon(
+                                Icons.copy,
+                                size: television ? 28 : 20,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Text(
+                          httpError ?? l10n.connectWifi,
+                          style: TextStyle(
+                            fontSize: television ? 18 : 14,
+                            color: Colors.orangeAccent,
+                          ),
+                        ),
+                ),
+              if (prefs.httpLanEnabled)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Text(
+                    l10n.lanDisclosure,
                     style: TextStyle(
-                      fontSize: television ? 18 : 14,
-                      color: Colors.orangeAccent,
+                      fontSize: television ? 16 : 13,
+                      color: Colors.white70,
                     ),
-                  ),
-                Text(
-                  l10n.lanDisclosure,
-                  style: TextStyle(
-                    fontSize: television ? 16 : 13,
-                    color: Colors.white70,
                   ),
                 ),
-              ],
             ],
           ),
-        ListTile(
-          key: const Key('about-open'),
-          contentPadding: EdgeInsets.zero,
-          title: Text(
-            l10n.sectionAbout,
-            style: TextStyle(fontSize: television ? 20 : 16),
-          ),
-          onTap: onAbout,
+        _SettingsGroup(
+          key: const Key('settings-group-legal'),
+          television: television,
+          children: [
+            _SettingsNavTile(
+              itemKey: const Key('settings-privacy-policy'),
+              television: television,
+              title: l10n.privacyPolicy,
+              onTap: onPrivacyPolicy,
+            ),
+            _SettingsNavTile(
+              itemKey: const Key('settings-terms-of-use'),
+              television: television,
+              title: l10n.termsOfUse,
+              onTap: onTermsOfUse,
+            ),
+          ],
         ),
       ],
     );
@@ -1943,7 +1956,7 @@ InputDecoration _settingsFieldDecoration({String? hint}) {
   return InputDecoration(
     hintText: hint,
     filled: true,
-    fillColor: const Color(0xFF2A2A2A),
+    fillColor: const Color(0xFF1A1A1A),
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
     border: OutlineInputBorder(
@@ -1995,26 +2008,32 @@ class _RtmpUrlFieldsState extends State<_RtmpUrlFields> {
     final l10n = AppLocalizations.of(context);
     final fontSize = widget.television ? 20.0 : 16.0;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l10n.streamUrl),
-        TextFormField(
-          key: const Key('rtmp-server'),
-          controller: _server,
-          style: TextStyle(fontSize: fontSize),
-          decoration: _settingsFieldDecoration(
-            hint: 'rtmp://live.example/live',
+        _SettingsItem(
+          television: widget.television,
+          title: l10n.streamUrl,
+          child: TextFormField(
+            key: const Key('rtmp-server'),
+            controller: _server,
+            style: TextStyle(fontSize: fontSize),
+            decoration: _settingsFieldDecoration(
+              hint: 'rtmp://live.example/live',
+            ),
+            onChanged: widget.onRtmpServer,
           ),
-          onChanged: widget.onRtmpServer,
         ),
-        Text(l10n.streamKey),
-        TextFormField(
-          key: const Key('rtmp-key'),
-          controller: _key,
-          obscureText: true,
-          style: TextStyle(fontSize: fontSize),
-          decoration: _settingsFieldDecoration(hint: l10n.streamKeyHint),
-          onChanged: widget.onRtmpKey,
+        const Divider(height: 1, thickness: 1, color: Color(0xFF333333)),
+        _SettingsItem(
+          television: widget.television,
+          title: l10n.streamKey,
+          child: TextFormField(
+            key: const Key('rtmp-key'),
+            controller: _key,
+            obscureText: true,
+            style: TextStyle(fontSize: fontSize),
+            decoration: _settingsFieldDecoration(hint: l10n.streamKeyHint),
+            onChanged: widget.onRtmpKey,
+          ),
         ),
       ],
     );
@@ -2037,14 +2056,47 @@ class _SettingsDropdown<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<T>(
-      isExpanded: true,
-      value: value,
-      items: items,
-      onChanged: onChanged,
-      style: TextStyle(fontSize: television ? 20 : 16, color: Colors.white),
-      dropdownColor: const Color(0xFF2A2A2A),
-      decoration: _settingsFieldDecoration(),
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<T>(
+        isExpanded: true,
+        isDense: !television,
+        value: value,
+        items: [
+          for (final item in items)
+            DropdownMenuItem<T>(
+              value: item.value,
+              enabled: item.enabled,
+              child: _oneLine(item.child),
+            ),
+        ],
+        selectedItemBuilder: (context) => [
+          for (final item in items) _oneLine(item.child, end: true),
+        ],
+        onChanged: onChanged,
+        style: TextStyle(fontSize: television ? 18 : 14, color: Colors.white),
+        dropdownColor: const Color(0xFF2A2A2A),
+        alignment: AlignmentDirectional.centerEnd,
+        iconEnabledColor: Colors.white70,
+        borderRadius: BorderRadius.circular(8),
+      ),
+    );
+  }
+
+  static Widget _oneLine(Widget child, {bool end = false}) {
+    final text = child is Text
+        ? Text(
+            child.data ?? '',
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+            style: child.style,
+          )
+        : child;
+    return Align(
+      alignment: end
+          ? AlignmentDirectional.centerEnd
+          : AlignmentDirectional.centerStart,
+      child: text,
     );
   }
 }
@@ -2076,7 +2128,7 @@ class _SettingsChoiceRow<T> extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 backgroundColor: value == options[i]
                     ? const Color(0xFF2A3A55)
-                    : const Color(0xFF2A2A2A),
+                    : const Color(0xFF1A1A1A),
                 foregroundColor: Colors.white,
                 side: BorderSide(
                   color: value == options[i]
@@ -2106,47 +2158,170 @@ class _SettingsChoiceRow<T> extends StatelessWidget {
   }
 }
 
-class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({
-    required this.title,
+class _SettingsGroup extends StatelessWidget {
+  const _SettingsGroup({
+    super.key,
     required this.television,
     required this.children,
-    this.trailing,
+    this.title = '',
   });
 
-  final String title;
   final bool television;
+  final String title;
   final List<Widget> children;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (title.isNotEmpty)
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: television ? 20 : 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white70,
-                    ),
-                  ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: television ? 16 : 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white70,
                 ),
-                if (trailing != null) trailing!,
+              ),
+            ),
+          Material(
+            color: const Color(0xFF242424),
+            borderRadius: BorderRadius.circular(12),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (var i = 0; i < children.length; i++) ...[
+                  if (i > 0)
+                    const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0xFF333333),
+                    ),
+                  children[i],
+                ],
               ],
             ),
-          if (title.isNotEmpty) const SizedBox(height: 8),
-          ...children,
-          const SizedBox(height: 8),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _SettingsItem extends StatelessWidget {
+  const _SettingsItem({
+    required this.television,
+    required this.title,
+    this.trailing,
+    this.child,
+  });
+
+  final bool television;
+  final String title;
+  final Widget? trailing;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleStyle = TextStyle(fontSize: television ? 20 : 16);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        television ? 14 : 10,
+        16,
+        television ? 14 : 10,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (title.isNotEmpty || trailing != null)
+            Row(
+              children: [
+                if (title.isNotEmpty)
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: titleStyle,
+                  )
+                else
+                  const Spacer(),
+                if (trailing != null) ...[
+                  if (title.isNotEmpty) const SizedBox(width: 12),
+                  Expanded(child: trailing!),
+                ],
+              ],
+            ),
+          if (child != null) ...[
+            if (title.isNotEmpty || trailing != null) const SizedBox(height: 8),
+            child!,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsSwitchTile extends StatelessWidget {
+  const _SettingsSwitchTile({
+    this.itemKey,
+    required this.television,
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final Key? itemKey;
+  final bool television;
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: television ? 4 : 0,
+      ),
+      title: Text(title, style: TextStyle(fontSize: television ? 20 : 16)),
+      trailing: Switch(key: itemKey, value: value, onChanged: onChanged),
+      onTap: () => onChanged(!value),
+    );
+  }
+}
+
+class _SettingsNavTile extends StatelessWidget {
+  const _SettingsNavTile({
+    required this.itemKey,
+    required this.television,
+    required this.title,
+    required this.onTap,
+  });
+
+  final Key itemKey;
+  final bool television;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      key: itemKey,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      minVerticalPadding: television ? 16 : 12,
+      title: Text(title, style: TextStyle(fontSize: television ? 20 : 16)),
+      trailing: Icon(
+        Icons.chevron_right,
+        color: Colors.white54,
+        size: television ? 28 : 22,
+      ),
+      onTap: onTap,
     );
   }
 }
@@ -2286,11 +2461,7 @@ class _ControlButton extends StatelessWidget {
           icon: Icon(icon, size: television ? 32 : 20),
           label: FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(
-              label,
-              style: textStyle,
-              maxLines: 1,
-            ),
+            child: Text(label, style: textStyle, maxLines: 1),
           ),
         ),
       ),

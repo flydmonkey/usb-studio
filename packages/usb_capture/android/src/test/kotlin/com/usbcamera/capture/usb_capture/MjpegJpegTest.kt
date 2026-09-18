@@ -80,4 +80,15 @@ internal class MjpegMultipartStreamTest {
         hub.close()
         assertEquals(-1, stream.read())
     }
+
+    @Test
+    fun closeInvokesCallbackOnce() {
+        val hub = MjpegHub()
+        var n = 0
+        val stream = MjpegMultipartStream(hub, onClosed = { n++ })
+        stream.close()
+        stream.close()
+        assertEquals(1, n)
+        assertEquals(-1, stream.read())
+    }
 }

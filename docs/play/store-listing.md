@@ -85,7 +85,7 @@ USB Studio는 HDMI USB 캡처 카드를 Android 휴대폰, 태블릿, TV에 연�
 
 ## Screenshots to capture
 
-Phone (at least 2, better 4–8): empty state with “insert capture card”; live preview + record; settings (including About / privacy); library.
+Phone (at least 2, better 4–8): empty state with “insert capture card”; live preview + record; settings (including privacy policy / terms of use); library.
 
 TV (required while `LEANBACK_LAUNCHER` is present): 10-foot preview; settings reachable with D-pad; TV banner showing **USB Studio**.
 

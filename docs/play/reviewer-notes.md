@@ -19,7 +19,7 @@ Until the video is uploaded, the no-card paths below are enough to confirm the A
 
 1. Launch. Grant or deny after the in-app explanation (Camera + Microphone are for the USB card, not the selfie camera).
 2. See the empty state asking to insert a USB capture card. The app must not crash or stay on a blank camcorder viewfinder.
-3. Open **Settings** (including on TV with D-pad): language, recording, About → Privacy policy, open-source licenses, version.
+3. Open **Settings** (including on TV with D-pad): language, recording, Privacy policy, Terms of use.
 4. Open **Library** (empty state is OK).
 5. Optional: enable LAN playback; the UI should show an HTTP URL or “connect to Wi-Fi”. This server is local and unencrypted.
 

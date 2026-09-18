@@ -34,7 +34,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get languageEn => 'English';
 
   @override
-  String get settingsTitle => '캡처 설정';
+  String get settingsTitle => '설정';
 
   @override
   String get close => '닫기';
@@ -59,6 +59,9 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get privacyPolicy => '개인정보처리방침';
+
+  @override
+  String get termsOfUse => '이용약관';
 
   @override
   String get openSourceLicenses => '오픈소스 라이선스';

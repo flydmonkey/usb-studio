@@ -15,15 +15,11 @@ The app SHALL expose one publicly reachable privacy-policy URL (not a PDF) from 
 - **WHEN** the app is in television UI mode
 - **THEN** the operator MUST be able to reach and activate the privacy-policy control with the D-pad
 
-### Requirement: About section shows version and licenses
-Capture settings SHALL include an About group that shows the installed `versionName`, a control that opens the privacy policy, and a control that shows the Flutter open-source license page. The product name displayed in About SHALL remain `USB Studio`.
+### Requirement: Settings expose privacy policy and terms of use
+Capture settings SHALL include separate controls at the bottom of the sheet for the privacy policy and terms of use. The privacy-policy control SHALL open the public privacy-policy URL. The terms-of-use control SHALL show the Flutter open-source license page. Settings MUST NOT include an About entry or About dialog.
 
-#### Scenario: Version is visible in settings
-- **WHEN** the operator opens capture settings
-- **THEN** the About group SHALL show the current Android `versionName`
-
-#### Scenario: Licenses page opens
-- **WHEN** the operator activates Open-source licenses
+#### Scenario: Terms of use opens licenses
+- **WHEN** the operator activates Terms of use
 - **THEN** the app SHALL show the license page listing Flutter and third-party packages
 
 ### Requirement: First-run disclosure before camera and microphone

@@ -62,11 +62,12 @@ class CaptureEngine(
     private var monitorDelayMs = 0
     private var qualityPreset = "standard"
     private var streamBitratePreset = "mbps2"
-    private var streaming = false
+    @Volatile private var streaming = false
     private var httpLiveEncoding = false
     private var httpServing = false
     private var httpServer: LanHttpServer? = null
     private val mjpegHub = MjpegHub()
+    private val lanLiveViewers = LanLiveViewers()
     private val jpegLive = JpegLiveEncoder(mjpegHub, previewView = { previewView })
     private var httpUrl: String? = null
     private var httpPort = 0
@@ -80,7 +81,7 @@ class CaptureEngine(
             if (streaming) {
                 streamSession?.queueNv21(frame)
             }
-            if (httpServing) {
+            if (lanEncodeActive()) {
                 jpegLive.offerFrame(copyFrame(frame))
             }
         } catch (_: Throwable) {
@@ -188,18 +189,21 @@ class CaptureEngine(
 
         override fun onCameraOpen(device: UsbDevice) {
             val helper = helper ?: return
+            cachePreviewSize(helper)
+            jpegLive.setSize(previewWidth, previewHeight)
             helper.startPreview()
             attachSurfaceIfReady()
             openedDeviceId = deviceId(device)
             hasCaptureAudio = findUsbAudioDevice() != null
-            cachePreviewSize(helper)
-            jpegLive.setSize(previewWidth, previewHeight)
             if (!hasCaptureAudio) {
                 emit(mapOf("type" to "audioUnavailable", "code" to "noAudioSource"))
             }
             lastFrameAt = SystemClock.elapsedRealtime()
             gotPreviewFrame = false
             lastEmittedSignal = null
+            measuredFps = 0
+            frameCount = 0
+            fpsWindowStart = 0L
             startWatchdog()
             startAudioMonitor()
             try {
@@ -213,7 +217,7 @@ class CaptureEngine(
         }
 
         override fun onCameraClose(device: UsbDevice) {
-            previewSurface?.let { helper?.removeSurface(it) }
+            releasePreviewSurface()
             stopWatchdog()
         }
 
@@ -261,8 +265,7 @@ class CaptureEngine(
     }
 
     fun detachPreview() {
-        previewSurface?.let { helper?.removeSurface(it) }
-        previewSurface = null
+        releasePreviewSurface()
         previewView = null
     }
 
@@ -270,7 +273,7 @@ class CaptureEngine(
         val now = SystemClock.elapsedRealtime()
         lastFrameAt = now
         gotPreviewFrame = true
-        if (httpServing) {
+        if (lanEncodeActive()) {
             jpegLive.kick()
         }
         if (fpsWindowStart == 0L) fpsWindowStart = now
@@ -411,17 +414,12 @@ class CaptureEngine(
     }
 
     fun setFormat(formatId: String) {
-        if (recording || helper?.isRecording == true || streaming || httpLiveEncoding) {
-            throw CaptureException(
-                when {
-                    (streaming || httpLiveEncoding) && !recording -> "streamFailed"
-                    else -> "recordingFailed"
-                },
-                when {
-                    (streaming || httpLiveEncoding) && !recording -> "streamInProgress"
-                    else -> "recordingInProgress"
-                },
-            )
+        CaptureRuntimePolicy.formatLock(
+            recording = recording || helper?.isRecording == true,
+            streaming = streaming,
+            lanLiveBusy = lanEncodeActive() || httpLiveEncoding,
+        )?.let { (code, details) ->
+            throw CaptureException(code, details)
         }
         val helper = helper
         if (helper == null || helper.isCameraOpened != true) {
@@ -642,6 +640,8 @@ class CaptureEngine(
             openRecording = { id -> recordingLibrary.openForRead(context, id) },
             mjpegHub = { mjpegHub },
             liveStatus = { liveStatusJson() },
+            liveViewers = lanLiveViewers,
+            onLiveViewersChanged = { mainHandler.post { refreshLiveFrames() } },
         )
         val port = server.start(8080)
         httpServer = server
@@ -744,17 +744,25 @@ class CaptureEngine(
         previewMjpeg = size.type == UVCCamera.UVC_VS_FRAME_MJPEG
     }
 
+    private fun lanEncodeActive(): Boolean {
+        return CaptureRuntimePolicy.shouldEncodeLanLive(
+            httpServing = httpServing,
+            liveViewers = lanLiveViewers.count(),
+            streaming = streaming,
+        )
+    }
+
     private fun refreshLiveFrames() {
-        if (httpServing) {
-            httpLiveEncoding = true
+        val encodeLan = lanEncodeActive()
+        httpLiveEncoding = encodeLan
+        if (encodeLan) {
             jpegLive.setSize(previewWidth, previewHeight)
             jpegLive.start()
         } else {
-            httpLiveEncoding = false
             jpegLive.stop()
         }
         val helper = helper ?: return
-        if (streaming || httpServing) {
+        if (streaming || encodeLan) {
             helper.setFrameCallback(livePreviewCallback, UVCCamera.PIXEL_FORMAT_NV21)
         } else {
             try {
@@ -1130,12 +1138,34 @@ class CaptureEngine(
         emit(mapOf("type" to "disconnected", "code" to "disconnected"))
     }
 
+    private fun releasePreviewSurface() {
+        val surface = previewSurface ?: return
+        previewSurface = null
+        try {
+            helper?.removeSurface(surface)
+        } catch (_: Exception) {
+        }
+        try {
+            surface.release()
+        } catch (_: Exception) {
+        }
+    }
+
     private fun attachSurfaceIfReady() {
         val view = previewView ?: return
         val texture = view.surfaceTexture ?: return
         val helper = helper ?: return
         if (helper.isCameraOpened != true) return
-        previewSurface?.let { helper.removeSurface(it) }
+        val size = helper.previewSize
+        val plan = PreviewSurfacePolicy.plan(
+            existingSurface = previewSurface != null,
+            previewWidth = size?.width ?: previewWidth,
+            previewHeight = size?.height ?: previewHeight,
+        )
+        releasePreviewSurface()
+        if (plan != null) {
+            texture.setDefaultBufferSize(plan.bufferWidth, plan.bufferHeight)
+        }
         val surface = Surface(texture)
         previewSurface = surface
         helper.addSurface(surface, false)

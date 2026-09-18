@@ -17,6 +17,7 @@
   "sectionLan": "LAN playback",
   "sectionAbout": "About",
   "privacyPolicy": "Privacy policy",
+  "termsOfUse": "Terms of use",
   "openSourceLicenses": "Open-source licenses",
   "appVersion": "Version {version}",
   "@appVersion": {

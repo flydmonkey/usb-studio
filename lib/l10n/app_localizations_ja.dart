@@ -34,7 +34,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get languageEn => 'English';
 
   @override
-  String get settingsTitle => 'キャプチャ設定';
+  String get settingsTitle => '設定';
 
   @override
   String get close => '閉じる';
@@ -59,6 +59,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get privacyPolicy => 'プライバシーポリシー';
+
+  @override
+  String get termsOfUse => '利用規約';
 
   @override
   String get openSourceLicenses => 'オープンソースライセンス';

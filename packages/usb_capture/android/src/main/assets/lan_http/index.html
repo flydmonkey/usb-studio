@@ -386,6 +386,9 @@
         liveBound = false;
         if (liveOn) showOverlay(i18n.waitingCard);
       });
+      window.addEventListener('pagehide', function () {
+        setLiveOn(false);
+      });
 
       function formatBytes(bytes) {
         var n = Number(bytes) || 0;

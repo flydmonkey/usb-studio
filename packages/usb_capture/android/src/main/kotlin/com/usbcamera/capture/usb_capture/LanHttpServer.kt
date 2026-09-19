@@ -62,7 +62,7 @@ internal class LanHttpServer(
                 path == "/api/live" -> serveLiveStatus()
                 path == "/live.mjpeg" -> serveLiveMjpeg()
                 path.startsWith("/vod/") -> serveVod(path.removePrefix("/vod/"), session)
-                else -> newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "")
+                else -> serveStatic(path)
             }.also { addCors(it) }
         }
 
@@ -71,6 +71,26 @@ internal class LanHttpServer(
             response.addHeader("Access-Control-Allow-Methods", "GET, OPTIONS")
             response.addHeader("Access-Control-Allow-Headers", "Range")
             return response
+        }
+
+        private fun serveStatic(path: String): Response {
+            val file = LanHttpStatic.fileFor(path)
+                ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "")
+            return try {
+                context.assets.open(file.asset).use { input ->
+                    val body = input.readBytes()
+                    newFixedLengthResponse(
+                        Response.Status.OK,
+                        file.mime,
+                        body.inputStream(),
+                        body.size.toLong(),
+                    ).apply {
+                        addHeader("Cache-Control", "public, max-age=86400")
+                    }
+                }
+            } catch (_: Exception) {
+                newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "")
+            }
         }
 
         private fun serveIndex(): Response {

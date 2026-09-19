@@ -36,12 +36,17 @@ The server SHALL bind `0.0.0.0`, prefer port `8080`, and increment the port if o
 | Path | Behavior |
 | --- | --- |
 | `GET /` | HTML page with one shared player, a live-preview switch (default off), and recording library list |
+| `GET /favicon.ico` and `GET /favicon.png` | App launcher icon as `image/png` |
 | `GET /api/recordings` | JSON array `[{id,name,bytes}]` for the home page library list (same ids as in-app library) |
 | `GET /api/live` | JSON `{hasCard,mjpeg,paused,ready}` for live overlay state |
 | `GET /live.mjpeg` | Live MJPEG (`multipart/x-mixed-replace`) of the latest UVC JPEG. When no JPEG is available the connection MAY wait. The page SHALL show waiting, need-MJPEG, or paused-while-streaming as appropriate |
 | `GET /vod/<id>` | Saved MP4 with `video/mp4` and HTTP Range support for progressive playback. `GET /vod/<id>?download=1` SHALL return the whole file with `Content-Disposition: attachment` so a browser can save it |
 
 The recording list SHALL use the same source and ids as the in-app library (album / Movies / Downloads / custom folder). Live SHALL NOT include audio.
+
+#### Scenario: Home page favicon is the app icon
+- **WHEN** a client requests `GET /favicon.ico` or `GET /favicon.png`
+- **THEN** the server SHALL return the USB Studio launcher icon as `image/png`
 
 #### Scenario: Browser opens home without card
 - **WHEN** a browser on the same Wi-Fi opens the displayed URL and no capture card session is open
